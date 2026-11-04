@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>メール判定.com</title>
+<style>
+  *, *::before, *::after { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { background:#fff; color:#222; font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; margin:0; line-height:1.6; }
+  main { max-width:680px; margin:40px auto; padding:0 16px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; }
+  p.lead { color:#666; margin-top:0; }
+  label { display:block; font-weight:bold; margin:20px 0 6px; }
+  input, textarea { width:100%; padding:12px; border:1px solid #ccc; border-radius:6px; font-size:16px; font-family:inherit; }
+  input { min-height:48px; }
+  input:focus, textarea:focus { outline:2px solid #222; outline-offset:1px; border-color:#222; }
+  textarea { height:220px; resize:vertical; }
+  button { margin-top:20px; min-height:48px; padding:12px 32px; font-size:16px; font-family:inherit; border:1px solid #222; background:#fff; color:#222; border-radius:6px; cursor:pointer; touch-action:manipulation; }
+  button:hover, button:active { background:#f3f3f3; }
+  #result { margin-top:28px; border:1px solid #ddd; border-radius:6px; padding:16px; display:none; }
+  .risk-row { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid #eee; }
+  .risk-label { color:#666; }
+  .risk { font-size:1.6rem; font-weight:bold; padding:2px 16px; border:2px solid currentColor; border-radius:6px; }
+  .high { color:#c00; } .mid { color:#b36b00; } .low { color:#080; }
+  h2 { font-size:1rem; margin:14px 0 6px; }
+  #points { margin:0; padding-left:1.2em; }
+  #points li { margin:8px 0; overflow-wrap:anywhere; word-break:break-word; }
+  small { display:block; margin-top:12px; color:#888; }
+  @media (max-width:480px) {
+    main { margin:20px auto; padding:0 14px; }
+    h1 { font-size:1.4rem; }
+    textarea { height:180px; }
+    button { width:100%; }
+    #result { padding:14px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>メール判定.com</h1>
+  <p class="lead">怪しいメールかどうかを簡易チェックします。</p>
+
+  <label for="from">送信元アドレス</label>
+  <input id="from" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="example@example.com">
+
+  <label for="body">メール本文</label>
+  <textarea id="body" placeholder="ここにメール本文を貼り付けてください"></textarea>
+
+  <button id="check">判定する</button>
+
+  <section id="result">
+    <div class="risk-row"><span class="risk-label">リスク</span><span id="risk" class="risk"></span></div>
+    <h2>怪しいポイント</h2>
+    <ul id="points"></ul>
+    <small>※簡易的な判定です。不安な場合は公式サイトや窓口で直接確認してください。</small>
+  </section>
+</main>
+
+<script>
+const BRANDS = {
+  "amazon": ["amazon.co.jp","amazon.com"],
+  "アマゾン": ["amazon.co.jp","amazon.com"],
+  "楽天": ["rakuten.co.jp","rakuten.com"],
+  "apple": ["apple.com"],
+  "三井住友": ["smbc.co.jp","smbc-card.com"],
+  "三菱ufj": ["mufg.jp","bk.mufg.jp"],
+  "ゆうちょ": ["jp-bank.japanpost.jp","japanpost.jp"],
+  "日本郵便": ["japanpost.jp","post.japanpost.jp"],
+  "メルカリ": ["mercari.com","mercari.jp"],
+  "paypay": ["paypay.ne.jp"],
+  "docomo": ["docomo.ne.jp"],
+  "au": ["au.com","kddi.com"],
+  "ヤマト": ["kuronekoyamato.co.jp"],
+  "佐川": ["sagawa-exp.co.jp"],
+  "国税庁": ["nta.go.jp"],
+  "etc": ["etc-meisai.jp"]
+};
+const FREE_MAIL = ["gmail.com","yahoo.co.jp","yahoo.com","outlook.com","hotmail.com","icloud.com","outlook.jp","live.jp"];
+const SUSPICIOUS_TLD = [".xyz",".top",".club",".online",".site",".icu",".cn",".ru",".buzz",".live",".shop",".cyou",".monster"];
+
+const RULES = [
+  { re:/至急|緊急|直ちに|今すぐ|24時間以内|48時間以内|本日中|期限/, score:2, msg:"「至急」「期限」など、急がせる表現があります" },
+  { re:/アカウント.{0,10}(停止|凍結|制限|ロック|削除)|利用.{0,6}(停止|制限)/, score:3, msg:"アカウント停止・制限をほのめかしています" },
+  { re:/パスワード|暗証番号|ログイン情報|認証コード|ワンタイム/, score:2, msg:"パスワードや認証コードに触れています" },
+  { re:/クレジットカード|カード番号|有効期限|セキュリティコード|口座番号/, score:3, msg:"カード番号や口座情報の入力を求めている可能性があります" },
+  { re:/本人確認|情報.{0,4}(確認|更新)|再登録/, score:2, msg:"「本人確認」「情報の更新」を求めています" },
+  { re:/不正(アクセス|利用|ログイン)|異常なログイン|第三者/, score:2, msg:"不正利用を理由に不安をあおっています" },
+  { re:/当選|おめでとう|賞金|無料プレゼント|特別(に|な)?ご案内/, score:2, msg:"当選・プレゼントなどのうまい話が含まれています" },
+  { re:/未払い|未納|料金.{0,4}(滞納|未払)|法的(措置|手続)|差し押さえ/, score:3, msg:"未払い・法的措置などで脅す表現があります" },
+  { re:/不在.{0,6}(持ち帰り|通知)|配達.{0,6}(できません|失敗)|お荷物/, score:2, msg:"宅配の不在通知を装った文面の特徴があります" },
+  { re:/ギフトカード|ビットコイン|暗号資産|仮想通貨|電子マネー.{0,6}購入/, score:3, msg:"ギフトカードや暗号資産での支払いを求めています" },
+  { re:/お客様各位|親愛なる|尊敬する|お客様へ/, score:1, msg:"宛名が名前ではなく一般的な呼びかけです" },
+  { re:/[\u4e00-\u9fa5](の|を)?(于|您|请|账户|验证)|您/, score:2, msg:"不自然な漢字（中国語の簡体字など）が混じっています" },
+  { re:/\.(exe|scr|zip|js|vbs|bat)\b/i, score:3, msg:"危険な種類のファイルへの言及があります" }
+];
+
+function domainOf(addr){ const m = addr.trim().toLowerCase().match(/@([^\s>]+)$/); return m ? m[1].replace(/[>)]$/,"") : ""; }
+function endsWithAny(d, list){ return list.some(x => d === x || d.endsWith("." + x)); }
+
+function judge(from, body){
+  const points = []; let score = 0;
+  const lower = body.toLowerCase();
+  const dom = domainOf(from);
+
+  if (!from.trim()) { points.push("送信元アドレスが入力されていません"); }
+  else if (!dom) { score += 2; points.push("送信元アドレスの形式が不正です"); }
+  else {
+    if (SUSPICIOUS_TLD.some(t => dom.endsWith(t))) { score += 3; points.push(`送信元ドメイン「${dom}」は詐欺によく使われる種類のものです`); }
+    if (/\d{3,}/.test(dom) || (dom.match(/-/g)||[]).length >= 2) { score += 1; points.push(`送信元ドメイン「${dom}」が不自然な文字列です`); }
+  }
+
+  // ブランドなりすまし
+  for (const [name, doms] of Object.entries(BRANDS)) {
+    const hit = name === "au" || name === "etc" ? new RegExp("\\b"+name+"\\b","i").test(body) : lower.includes(name.toLowerCase());
+    if (!hit) continue;
+    if (dom && !endsWithAny(dom, doms)) {
+      score += FREE_MAIL.includes(dom) ? 4 : 3;
+      points.push(`本文は「${name}」を名乗っていますが、送信元「${dom}」は公式ドメインではありません`);
+    }
+    break;
+  }
+  if (dom && FREE_MAIL.includes(dom) && /(会社|株式会社|銀行|カード|サポート|運営|事務局)/.test(body)) {
+    score += 2; points.push("企業を名乗っているのに、フリーメールから送られています");
+  }
+
+  for (const r of RULES) if (r.re.test(body)) { score += r.score; points.push(r.msg); }
+
+  // URLチェック
+  const urls = body.match(/https?:\/\/[^\s"'<>）)]+/gi) || [];
+  for (const u of urls.slice(0,10)) {
+    let host = ""; try { host = new URL(u).hostname.toLowerCase(); } catch(e){ continue; }
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(host)) { score += 3; points.push(`IPアドレスを直接使ったリンクがあります（${host}）`); }
+    else if (SUSPICIOUS_TLD.some(t => host.endsWith(t))) { score += 3; points.push(`怪しいドメインのリンクがあります（${host}）`); }
+    if (/bit\.ly|tinyurl|t\.co|is\.gd|cutt\.ly|x\.gd/.test(host)) { score += 2; points.push(`短縮URLで本当のリンク先が隠されています（${host}）`); }
+    if (u.startsWith("http://")) { score += 1; points.push(`暗号化されていない http:// のリンクがあります（${host}）`); }
+    if (dom && host && !host.endsWith(dom.split(".").slice(-2).join("."))) {
+      const brandHit = Object.values(BRANDS).flat().some(b => host.includes(b.split(".")[0]) && !endsWithAny(host, [b]));
+      if (brandHit) { score += 3; points.push(`有名サービス名を含むが公式ではないリンクがあります（${host}）`); }
+    }
+  }
+  if (urls.length && /(こちら|下記|以下).{0,10}(クリック|タップ|アクセス|ログイン)/.test(body)) {
+    score += 1; points.push("リンクをクリックしてログインするよう促しています");
+  }
+
+  const uniq = [...new Set(points)];
+  const level = score >= 6 ? "高" : score >= 3 ? "中" : "低";
+  if (uniq.length === 0 || (uniq.length === 1 && !from.trim())) uniq.push("目立った怪しいポイントは見つかりませんでした");
+  return { level, points: uniq };
+}
+
+document.getElementById("check").addEventListener("click", () => {
+  const from = document.getElementById("from").value;
+  const body = document.getElementById("body").value;
+  if (!body.trim()) { alert("メール本文を入力してください"); return; }
+  const { level, points } = judge(from, body);
+  const riskEl = document.getElementById("risk");
+  riskEl.textContent = level;
+  riskEl.className = "risk " + (level === "高" ? "high" : level === "中" ? "mid" : "low");
+  const ul = document.getElementById("points"); ul.innerHTML = "";
+  points.forEach(p => { const li = document.createElement("li"); li.textContent = p; ul.appendChild(li); });
+  const res = document.getElementById("result");
+  res.style.display = "block";
+  res.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+</script>
+</body>
+</html>
