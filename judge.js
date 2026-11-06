@@ -1,0 +1,664 @@
+/* メール判定.com — 判定エンジン（プロトコル v0.8 のブラウザ内サブセット）
+ * ネットワークアクセスなし。入力URLへのアクセス・リダイレクト追跡・QR解析・SPF/DKIM検証はしない。
+ * 入力文字列は全て信頼できないデータとして扱い、命令として解釈しない（§9）。
+ */
+(function (g) {
+  "use strict";
+  var W = { strong: 3, medium: 2, weak: 1, none: 0 };
+  var LV = { N: 0, W: 1, M: 2, S: 3 };
+  var LVN = ["N", "W", "M", "S"];
+
+  // ---------- 正規化 ----------
+  function nfkc(s) { try { return (s || "").normalize("NFKC"); } catch (e) { return s || ""; } }
+  function norm(s) { return nfkc(s).toLowerCase(); }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function maskSecrets(s) { return String(s).replace(/\d[\d\- ]{5,}\d/g, function (m) { return m.replace(/\d/g, "＊"); }); }
+  function host2ascii(h) {
+    h = (h || "").trim().replace(/\.$/, "").toLowerCase();
+    if (!h) return "";
+    try { return new URL("http://" + h + "/").hostname.replace(/\.$/, ""); } catch (e) { return h; }
+  }
+  var SLD = { co: 1, or: 1, ne: 1, go: 1, ac: 1, ad: 1, ed: 1, gr: 1, lg: 1, com: 1, net: 1, org: 1, gov: 1, edu: 1 };
+  // 簡易登録ドメイン（PSL近似。.example等の予約TLDはモックとして末尾2ラベル）
+  function registrable(h) {
+    var p = h.split(".");
+    if (p.length <= 2) return h;
+    var tld = p[p.length - 1], sld = p[p.length - 2];
+    if (tld.length === 2 && SLD[sld]) return p.slice(-3).join(".");
+    return p.slice(-2).join(".");
+  }
+  function hostIn(host, list) {
+    for (var i = 0; i < list.length; i++) {
+      var d = list[i];
+      if (d.charAt(0) === "@") continue;
+      if (d.charAt(0) === "~") { d = d.slice(1); if (host === d || host.slice(-(d.length + 1)) === "." + d) return true; }
+      else if (host === d) return true;
+    }
+    return false;
+  }
+  function addrIn(addr, list) {
+    for (var i = 0; i < list.length; i++) if (list[i].charAt(0) === "@" && list[i].slice(1) === addr) return true;
+    return false;
+  }
+  function hasAddrRule(list) { return list.some(function (d) { return d.charAt(0) === "@"; }); }
+
+  // ---------- 字面比較（T*） ----------
+  function lev(a, b) {
+    var m = a.length, n = b.length, d = [], i, j;
+    for (i = 0; i <= m; i++) { d[i] = [i]; }
+    for (j = 0; j <= n; j++) d[0][j] = j;
+    for (i = 1; i <= m; i++) for (j = 1; j <= n; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    return d[m][n];
+  }
+  function deHomoglyph(s) {
+    return s.replace(/rn/g, "m").replace(/vv/g, "w").replace(/0/g, "o").replace(/1/g, "l").replace(/3/g, "e").replace(/5/g, "s")
+      .replace(/[а]/g, "a").replace(/[е]/g, "e").replace(/[о]/g, "o").replace(/[р]/g, "p").replace(/[с]/g, "c").replace(/[х]/g, "x").replace(/[і]/g, "i");
+  }
+  var GENERIC = { com: 1, co: 1, jp: 1, go: 1, lg: 1, ne: 1, or: 1, net: 1, org: 1, mail: 1, login: 1, support: 1, bank: 1, card: 1, pay: 1, post: 1, www: 1, example: 1 };
+  var CTAWORDS = ["secure", "login", "signin", "support", "account", "verify", "update", "auth", "security", "id", "help", "service", "info", "member", "jp"];
+  /* 戻り値: {rel:'related'|'typo'|'unrelated', tid, detail} */
+  function lexical(host, anchors) {
+    var reg = registrable(host);
+    var regLabels = reg.split(".").slice(0, -1).filter(function (l) { return !GENERIC[l]; });
+    var subLabels = host.slice(0, host.length - reg.length).split(".").filter(function (l) { return l && !GENERIC[l]; });
+    var best = { rel: "unrelated" };
+    anchors.forEach(function (a) {
+      var short = a.replace(/-/g, "").length <= 4;
+      // T03: 偽サブドメイン（ブランドが登録ドメインの外にある）
+      if (subLabels.some(function (l) { return l === a || l.split("-").indexOf(a) >= 0; }) && regLabels.indexOf(a) < 0) {
+        best = { rel: "typo", tid: "T03", detail: a }; return;
+      }
+      regLabels.forEach(function (l) {
+        if (best.rel === "typo") return;
+        var toks = l.split("-");
+        if (l === a || l.replace(/-/g, "") === a.replace(/-/g, "")) { if (best.rel !== "typo") best = { rel: "related", detail: a }; return; }
+        if (!short) {
+          var hg = deHomoglyph(l);
+          if (hg !== l && (hg === a || hg.replace(/-/g, "") === a.replace(/-/g, ""))) { best = { rel: "typo", tid: "T02", detail: a }; return; }
+          // T04: ブランド＋secure/login等の連結
+          var rest = l.replace(a, "").replace(/-/g, "");
+          if (l.indexOf(a) >= 0 && rest && CTAWORDS.indexOf(rest) >= 0) { best = { rel: "typo", tid: "T04", detail: a }; return; }
+          var L = a.replace(/-/g, "").length, dist = lev(l.replace(/-/g, ""), a.replace(/-/g, ""));
+          if (dist > 0 && ((L >= 5 && L <= 7 && dist === 1) || (L >= 8 && dist <= 2))) { best = { rel: "typo", tid: "T01", detail: a }; return; }
+        }
+        if (toks.indexOf(a) >= 0) { best = { rel: "related", detail: a }; return; }
+        if (!short && l.indexOf(a.replace(/-/g, "")) >= 0) best = { rel: "related", detail: a };
+      });
+    });
+    return best;
+  }
+
+  // ---------- ランダム文字列（E01、研究候補・weak・閾値未校正） ----------
+  function looksRandom(label) {
+    if (!label || label.length < 4) return false;
+    if (/^(no-?reply|info|support|mail|news|notice|admin|order|service|staff|contact|bounce)/.test(label)) return false;
+    var s = label.replace(/[-_.]/g, "");
+    var vowels = (s.match(/[aeiou]/g) || []).length;
+    var digits = (s.match(/\d/g) || []).length;
+    var letters = (s.match(/[a-z]/g) || []).length;
+    if (letters >= 4 && vowels === 0) return true;                 // pfcrz, bxwv
+    if (s.length >= 5 && digits >= 2 && letters >= 3 && /\d[a-z]+\d/.test(s)) return true; // q7v9z
+    if (s.length >= 7 && vowels / Math.max(letters, 1) < 0.15) return true;
+    return false;
+  }
+
+  // ---------- 送信元パーサー ----------
+  function parseEmail(raw) {
+    var s = nfkc(raw).trim();
+    var m = s.match(/<([^<>]+)>\s*$/); if (m) s = m[1].trim();
+    m = s.match(/^([^\s@<>()",;:]+)@([a-z0-9.\-\u0080-\uffff]+\.[a-z0-9\-\u0080-\uffff]{2,})$/i);
+    if (!m) return null;
+    var host = host2ascii(m[2]);
+    if (!host || host.indexOf(".") < 0) return null;
+    return { kind: "email", local: m[1].toLowerCase(), host: host, addr: m[1].toLowerCase() + "@" + host, raw: raw };
+  }
+  function parseSms(raw) {
+    var s = nfkc(raw || "").trim();
+    var kind = "unknown";
+    if (!s) kind = "unknown";
+    else if (/^\+?[\d\- ()]{9,}$/.test(s)) kind = "phone";
+    else if (/^\d{3,8}$/.test(s)) kind = "shortcode";
+    else if (/^[A-Za-z0-9_.\-]{2,15}$/.test(s)) kind = "alphanumeric";
+    else kind = "carrier_label";
+    return { kind: kind, raw: raw || "" };
+  }
+
+  // ---------- URL抽出（ネットワークなし） ----------
+  var URL_RE = /(?:https?:\/\/|hxxps?:\/\/|www\.)[^\s<>"'「」『』（）()]+|(?:[a-z0-9\-]+\.)+[a-z]{2,}\/[^\s<>"'「」『』（）()]*/gi;
+  function extractUrls(body, declared, P) {
+    var out = [], seen = {};
+    function add(raw, source, idx) {
+      var u = raw.replace(/[。、，．,.)）」』】>\]]+$/, "").replace(/^hxxp/i, "http");
+      var full = /^https?:\/\//i.test(u) ? u : "http://" + u;
+      var host = "", userinfo = false, ip = false;
+      try { var x = new URL(full); host = x.hostname.replace(/\.$/, "").toLowerCase(); userinfo = !!(x.username || x.password); } catch (e) { return; }
+      if (!host || host.indexOf(".") < 0) return;
+      ip = /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || /^\[/.test(host);
+      var key = source + "|" + u;
+      if (seen[key]) return; seen[key] = 1;
+      var flags = [];
+      if (userinfo) flags.push("userinfo");
+      if (ip) flags.push("ip_host");
+      if (hostIn(host, P.shorteners.map(function (d) { return "~" + d; }))) flags.push("shortener");
+      if (hostIn(host, P.tracking)) flags.push("tracking");
+      if (hostIn(host, P.redirects)) flags.push("redirect");
+      if (/^http:\/\//i.test(full) && /^http:/i.test(u)) flags.push("http");
+      out.push({ raw: u, host: host, registrable: registrable(host), flags: flags, source: source, index: idx });
+    }
+    var m; URL_RE.lastIndex = 0;
+    var b = nfkc(body);
+    while ((m = URL_RE.exec(b))) add(m[0], "body", m.index);
+    if (declared && nfkc(declared).trim()) add(nfkc(declared).trim(), "user_declared", -1);
+    return { urls: out, text: b };
+  }
+
+  // ---------- 文単位の要求・否定ガード ----------
+  function sentences(text) {
+    var out = [], re = /[^。！!？?\n]+[。！!？?]?/g, m;
+    while ((m = re.exec(text))) { var s = m[0].trim(); if (s) out.push({ text: s, start: m.index, end: m.index + m[0].length }); }
+    return out;
+  }
+  var REQ = /(してください|して下さい|ください|下さい|願います|お願いします|お願い致します|のうえ|の上|しなさい|せよ|して$)/;
+  var NEG = /(しないでください|しないで下さい|ないでください|ないで下さい|ことはありません|ことはございません|一切|決して|求めません|お尋ねしません|お伺いしません|送らないで|教えないで|入力しないで|返信しないで|必要はありません|不要です|操作不要)/;
+  var QUOTE = /(詐欺|偽の|偽装|なりすまし|ご注意ください|注意喚起|不審なメール|フィッシング)/;
+  function isRequest(s) { return REQ.test(s) && !NEG.test(s) && !QUOTE.test(s); }
+
+  var SECRET = /(ワンタイムパスワード|ワンタイム|認証コード|確認コード|セキュリティコード|OTP|暗証番号|CVV|CVC|カード番号|クレジットカード番号|有効期限とセキュリティ|新しいパスワード|パスワード|マイナンバー|口座番号|ログインID|PIN)/i;
+  var SECRET_VERB = /(入力|送信|返信|教えて|お知らせ|ご提供|提供|お伝え|伝えて|記入|送って|ご記載|記載|登録)/;
+  var APP_SELF = /(アプリを(ご)?自分で開|自分で開|ブックマーク|公式アプリから|公式アプリを開)/;
+  var LINKWORD = /(こちら|下記|以下|ボタン|リンク|URL|ＵＲＬ|タップ|クリック)/i;
+
+  function nameRegex(name, shortAscii) {
+    var e = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (/^[A-Za-z0-9 .!\-]+$/.test(name)) return new RegExp("(^|[^A-Za-z0-9])" + e + "(?![A-Za-z0-9])", shortAscii ? "" : "i");
+    return new RegExp("()" + e);
+  }
+  var CLAIM_CTX = /^(\s|様)?(?:です|でございます|より|から(?:の)?(?:お知らせ|ご案内|ご連絡|重要)|カスタマー|サポート|事務局|運営|セキュリティ|アカウント|会員|サービス|センター|お客様|株式会社|公式|ヘルプ|本部|管理)/;
+  var MERCHANT = /(マーケットプレイス|出品者)\s*\S+|\s+\S+(店|ショップ|SHOP|shop)(\s|$)/;
+
+  /* 自称・店舗・言及の分離（§4.1） */
+  function detectClaims(display, body, P) {
+    var dn = nfkc(display || "").trim(), bd = nfkc(body || "");
+    var names = [];
+    P.brands.forEach(function (b) { b.names.forEach(function (n) { names.push({ b: b, n: n }); }); });
+    names.sort(function (x, y) { return y.n.length - x.n.length; });
+    var sender = [], merchant = [], mention = [];
+    function scan(text, isDisplay) {
+      var used = [];
+      names.forEach(function (o) {
+        var re = nameRegex(o.n, o.b.shortAscii), m = re.exec(text);
+        if (!m) return;
+        var st = m.index + m[1].length, en = st + o.n.length;
+        if (used.some(function (u) { return st < u[1] && en > u[0]; })) return;
+        used.push([st, en]);
+        var after = text.slice(en, en + 24), before = text.slice(Math.max(0, st - 4), st);
+        var rec = { brand: o.b, name: o.n, where: isDisplay ? "display" : "body" };
+        if (o.b.mall || o.b.id === "amazon_jp") {
+          if (MERCHANT.test(after) && !/(本部|アカウント管理|カスタマー|サポート|事務局)/.test(after)) { merchant.push(rec); return; }
+        }
+        if (o.b.shortAscii) { // au/NHK等: 主体文脈を要求
+          if (!(isDisplay ? text.trim().length <= o.n.length + 12 : CLAIM_CTX.test(after))) { mention.push(rec); return; }
+        }
+        if (isDisplay) { sender.push(rec); return; }
+        var lineStart = text.lastIndexOf("\n", st) + 1;
+        var prefix = text.slice(lineStart, st);
+        var signature = text.slice(en).trim() === "" || /^[\s　]*$/.test(text.slice(en, text.indexOf("\n", en) < 0 ? text.length : text.indexOf("\n", en)));
+        if (CLAIM_CTX.test(after) || /【$/.test(before) || /発行元[:：]\s*$/.test(prefix) || (signature && prefix.trim().length <= 2 && lineStart > 0)) sender.push(rec);
+        else mention.push(rec);
+      });
+    }
+    if (dn) scan(dn, true);
+    scan(bd, false);
+    // 親子重複: 子ブランドがあれば親の重ね自称を外す
+    var ids = sender.map(function (c) { return c.brand.id; });
+    sender = sender.filter(function (c, i) {
+      if (ids.indexOf(c.brand.id) !== i) return false;
+      if (c.brand.id === "rakuten_market" && ids.some(function (x) { return /^rakuten_/.test(x) && x !== "rakuten_market"; })) return false;
+      if (c.brand.id === "paypay" && ids.some(function (x) { return /^paypay_/.test(x); })) return false;
+      if (c.brand.id === "nta_general" && ids.indexOf("nta_etax") >= 0) return false;
+      return true;
+    });
+    return { sender: sender, merchant: merchant, mention: mention };
+  }
+
+  // ---------- 送信元／URLとブランドの関係 ----------
+  function fromRelation(sender, b, P) {
+    var h = sender.host;
+    if (hostIn(h, b.send) || addrIn(sender.addr, b.send) || hostIn(h, b.sendExceptions || [])) return { rel: "send_matched" };
+    if (hostIn(h, b.pending)) return { rel: "pending" };
+    if (hasAddrRule(b.send) && b.e03r && hostIn(h, b.web)) return { rel: "web_aligned" };
+    if (hostIn(h, b.web)) return { rel: "web_aligned" };
+    if (hostIn(h, P.freeMail.map(function (d) { return "~" + d; }))) return { rel: "free" };
+    if (hostIn(h, P.otherEntities)) return { rel: "other_entity" };
+    if (b.state !== "verified" || !b.anchors.length) return { rel: "unknown_" + b.state };
+    var lx = lexical(h, b.anchors);
+    if (lx.rel === "typo") return { rel: "typo", tid: lx.tid, anchor: lx.detail };
+    if (lx.rel === "related") return { rel: "related" };
+    return { rel: "unrelated" };
+  }
+  function urlRelation(u, b, P, scopedFor) {
+    if (u.flags.indexOf("shortener") >= 0 || u.flags.indexOf("tracking") >= 0 || u.flags.indexOf("redirect") >= 0) {
+      return { rel: "opaque", scoped: !!scopedFor(u) };
+    }
+    if (u.flags.indexOf("ip_host") >= 0) return { rel: "unknown_ip" };
+    if (hostIn(u.host, b.web)) return { rel: "official_web" };
+    if (hostIn(u.host, b.pending)) return { rel: "pending" };
+    if (hostIn(u.host, P.otherEntities)) return { rel: "other_entity" };
+    if (b.state !== "verified" || !b.anchors.length) return { rel: "unknown_" + b.state };
+    var lx = lexical(u.host, b.anchors);
+    if (lx.rel === "typo") return { rel: "typo", tid: lx.tid };
+    if (lx.rel === "related") return { rel: "related_unverified" };
+    return { rel: "unrelated" };
+  }
+
+  // ---------- メイン ----------
+  function judge(input, opts) {
+    opts = opts || {};
+    var P = opts.protocol || g.MH_PROTOCOL;
+    var routeEnabled = opts.routeEnabled === true; // テスト用モック。本番は常にfalse
+    var res = {
+      schema_version: P.schema_version, verdict: null, danger_level: "N", confidence_band: "low",
+      channel: "email", context_answer: "unknown", sender_kind: "unknown", safety_guarantees: false,
+      input_issues: [], evidence: [], composite_rules: [], namespace_assessments: [], route_assessments: [],
+      gate_evaluations: [], auxiliary_flags: [], context_evidence: [], unknowns: [], urls_parsed: [],
+      disclaimer_ja: "本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。",
+      recommended_actions_ja: [], privacy: { retention: "minimize", mask: ["otp", "card", "account", "phone"] }
+    };
+    // --- 入力検証（§2.2） ---
+    var ch = input.channel == null || input.channel === "" ? "email" : input.channel;
+    if (ch !== "email" && ch !== "sms") { res.input_issues.push("channel_invalid"); ch = "email"; }
+    res.channel = ch;
+    var ctx = input.context_answer;
+    if (ctx === "yes" || ctx === "no" || ctx === "unknown") res.context_answer = ctx;
+    else { res.input_issues.push("context_invalid"); res.context_answer = "unknown"; }
+    res.context_evidence.push({ kind: "user_self_report", value: res.context_answer });
+    var body = nfkc(input.body || "");
+    if (!body.trim()) res.input_issues.push("body_empty");
+    var display = nfkc(input.display_name || "");
+    var sender = null;
+    if (ch === "sms") {
+      sender = parseSms(input.from_email); res.sender_kind = sender.kind; res.unknowns.push("sms_sender_unverified");
+    } else {
+      sender = parseEmail(input.from_email || "");
+      if (!sender) res.input_issues.push("from_unparseable"); else res.sender_kind = "email";
+      res.unknowns.push("sender_auth_unavailable", "html_href_unavailable");
+    }
+    var isEmail = ch === "email" && sender && sender.kind === "email";
+    var chName = ch === "sms" ? "SMS" : "メール";
+
+    var ev = [], aux = {}, comps = [];
+    function addEv(rule, family, key, strength, mismatch, note, basis, extra) {
+      var e = { rule_id: rule, matched_rule_ids: [rule], family: family, evidence_key: key, strength: strength, is_mismatch: !!mismatch, spans: (extra && extra.spans) || [], basis: basis || "official_support", note: note };
+      var ex = ev.filter(function (x) { return x.evidence_key === key; })[0];
+      if (ex) { // dedupe: maxで1つ、履歴は残す
+        if (ex.matched_rule_ids.indexOf(rule) < 0) ex.matched_rule_ids.push(rule);
+        if (W[strength] > W[ex.strength]) { ex.strength = strength; ex.rule_id = rule; ex.note = note; }
+        ex.is_mismatch = ex.is_mismatch || !!mismatch; return ex;
+      }
+      ev.push(e); return e;
+    }
+    function addComp(id, policy, note, isNew) {
+      var eff = policy;
+      var c = { rule_id: id, policy_level: policy, effective_level: eff, note: note, gate_ids: [] };
+      if (isNew && policy === "S" && !routeEnabled) {
+        c.effective_level = "M"; c.shadow = true;
+        c.gate_ids = /^P16s$/.test(id) ? ["G0", "G1b", "G2", "G3"] : /^P16/.test(id) ? ["G0", "G1b", "G3"] : ["G0", "G4"];
+        res.gate_evaluations.push({ rule_id: id, route_enabled: false, failed_gate_ids: c.gate_ids, note: "稼働ゲート未達のため内部shadow S、表示はM" });
+      }
+      comps.push(c); return c;
+    }
+
+    var ex = extractUrls(body, input.visible_link_url, P);
+    var urls = ex.urls;
+    res.urls_parsed = urls.map(function (u) { return { raw: maskSecrets(u.raw), host: u.host, registrable: u.registrable, flags: u.flags, source: u.source }; });
+    if (urls.some(function (u) { return u.source === "user_declared"; })) res.unknowns.push("user_declared_url_unverified");
+    var sents = sentences(body);
+    var claims = detectClaims(display, body, P);
+    var claim = claims.sender[0] || null;
+    var hasClaim = !!claim;
+    if (claims.sender.length || claims.merchant.length) res.unknowns.push("ledger_incomplete");
+    if (claims.sender.length >= 2) {
+      var distinct = claims.sender.filter(function (c) { return !c.brand.publicAgency; }).map(function (c) { return c.brand.id.split("_")[0]; });
+      var uniq = distinct.filter(function (x, i) { return distinct.indexOf(x) === i; });
+      if (uniq.length >= 2 && !/(配送|お届け|代行|提携|経由)/.test(body))
+        addEv("A08", "F_other", "other:multi_claim", "medium", false, "無関係な複数の会社・機関（" + claims.sender.map(function (c) { return c.brand.label; }).join("・") + "）を同時に名乗っています。");
+    }
+    function urlsInSent(s) { return urls.filter(function (u) { return u.source === "body" && u.index >= s.start && u.index < s.end; }); }
+
+    // --- 本文ルール（文単位） ---
+    var hasAddressee = /(様|さま|殿|さん)([\s、,。]|$)/.test(body);
+    var f = { A01x: false, B04: false, L: false, U1: false, U2: false, U3: true, reply_secret: false, A02: false };
+    var ctas = [];
+    var dateRe = /(\d{4}\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日|\d{1,2}\s*月\s*\d{1,2}\s*日|\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/;
+    if (dateRe.test(body)) f.U3 = false;
+    sents.forEach(function (s, i) {
+      var t = s.text, req = isRequest(t);
+      var su = urlsInSent(s);
+      var adj = [];
+      if (!su.length && /(下記|以下|次の)/.test(t) && sents[i + 1]) adj = urlsInSent(sents[i + 1]);
+      var linked = su.concat(adj);
+      var selfOpen = APP_SELF.test(t);
+      var route = linked.length ? "url" : (selfOpen ? "app" : (LINKWORD.test(t) ? "missing" : "none"));
+      var q = { a01: false, b04: false, l: false };
+      // A01_explicit
+      if (req && SECRET.test(t) && SECRET_VERB.test(t) && !/(末尾\s*\d|下\s*4\s*桁|発行しました|お知らせします|です。?$)/.test(t)) {
+        if (!/(パスワード.{0,3}(再設定|変更)|再設定)/.test(t) || /新しいパスワード.{0,6}入力|パスワードを入力/.test(t) || /(コード|暗証|CVV|カード番号)/i.test(t)) {
+          q.a01 = true; f.A01x = true;
+          var replyish = /(返信|このメール|ご返送|メッセージで|電話で|お伝え|伝えて|メールで|送って|送信してください|reply@|@)/.test(t) && route !== "url";
+          if (replyish) f.reply_secret = true;
+          addEv("A01", "F_identity", "identity:secret", "medium", false, "認証コード・暗証番号・カード番号・パスワード等の具体的な秘密情報の入力や送信を求めています。", "official_support", { spans: [maskSecrets(t).slice(0, 80)] });
+        }
+      }
+      // B04
+      if ((req || (/(しないと|しない場合|されない場合)/.test(t) && !NEG.test(t) && !QUOTE.test(t))) && /(カード|クレジット|お支払い方法|支払方法|支払い方法|決済方法)/.test(t) && /(再登録|登録し直|情報.{0,2}更新|を更新|の更新|再設定|情報.{0,2}変更)/.test(t) && !/(完了|しました|受け付けました|ご確認ください$)/.test(t)) {
+        q.b04 = true; f.B04 = true;
+        addEv("B04", "F_identity", "identity:card_update", "medium", false, "カード情報の再登録・更新を求めています。");
+      }
+      // L（能動的な再認証・本人確認・制限解除・パスワード再設定）
+      if (req && route !== "app" && route !== "none" && /(再認証|本人確認|制限解除|ロック解除|再ログイン|ログイン|サインイン|パスワード.{0,4}再設定|再設定|アカウント.{0,4}(確認|認証))/.test(t) && !/(ご覧|閲覧|購入履歴|内容をご確認)/.test(t)) {
+        q.l = true; f.L = true;
+      }
+      // 急迫（U_high要素）
+      if (/(今すぐ|直ちに|ただちに|至急|即時|即座|即日|本日中|今日中|\d+\s*時間以内|すぐに)/.test(t) && !/有効期限は/.test(t) && !QUOTE.test(t)) f.U1 = true;
+      if (/(凍結|利用停止|停止|強制解約|解約|差押|差し押さえ|制限|ロック|永久|閉鎖|無効)/.test(t) && /(しないと|しない場合|されない場合|なければ|ないと|恐れ|されます|します|いたします|となります|になります)/.test(t) && !QUOTE.test(t) && !NEG.test(t)) f.U2 = true;
+      // A02
+      if (/(ギフトカード|ギフト券|ギフトコード|プリペイドカード|電子マネー|iTunesカード|Google\s*Playカード|Apple\s*Gift\s*Card)/i.test(t) && /(番号|コード|PIN|裏面)/i.test(t) && /(送|返信|教えて|入力|お知らせ|撮影|伝え)/.test(t) && req) {
+        f.A02 = true; addEv("A02", "F_money", "money:gift_code", "strong", false, "ギフトカード等の番号・コードの送信や入力を求めています（詐欺でよく使われる手口です）。");
+      }
+      if (/(振込先|振込口座|お振込み先).{0,8}(変更|変わり)/.test(t) && !NEG.test(t) && !QUOTE.test(t)) { f.A02 = true; addEv("A02", "F_money", "money:payee_change", "strong", false, "振込先の変更を伝えています。振込前に、既知の連絡先へ別経路で確認してください。"); }
+      // A03
+      if (req && /(お電話|電話|返信)/.test(t) && /(支払|振込|返金|未納|未払|滞納|料金)/.test(t) && !/(お問い合わせ|問い合わせ窓口)/.test(t))
+        addEv("A03", "F_money", "money:phone_only", "medium", false, "電話や返信だけでお金の手続きを済ませるよう求めています。本文の番号には電話しないでください。");
+      // A05 / A06
+      if (req && /(遠隔操作|リモート操作|AnyDesk|TeamViewer|アプリをインストール|インストールしてください|コマンドを実行|マクロを有効)/i.test(t))
+        addEv("A05", "F_other", "other:remote", "medium", false, "遠隔操作アプリのインストールやマクロ・コマンドの実行を求めています。");
+      if (req && /(デバイスコード|device\s*code)/i.test(t)) addEv("A06", "F_other", "other:device_code", "medium", false, "デバイスコード等の入力・転送を求めています。");
+      if (q.a01 || q.b04 || q.l) ctas.push({ idx: i, text: t, route: route, urls: linked, q: q });
+      // A04（可視リンク先欠落CTA）
+      if (route === "missing" && /(ボタン|こちら|リンク|タップ|クリック)/.test(t) && !selfOpen) {
+        ctas.missingSeen = true;
+        if (!ctas.some(function (c) { return c.idx === i; })) ctas.push({ idx: i, text: t, route: "missing", urls: [], q: { a01: false, b04: false, l: false }, viewOnly: true });
+      }
+    });
+
+    // コピーURL（任意欄）: 対応CTAが1つなら対応付け（§4.8.6）
+    var declared = urls.filter(function (u) { return u.source === "user_declared"; })[0];
+    var linkCtas = ctas.filter(function (c) { return c.route === "url" || c.route === "missing"; });
+    if (declared && linkCtas.length === 1) { linkCtas[0].urls = [declared]; linkCtas[0].route = "url"; linkCtas[0].declared = true; }
+    ctas.forEach(function (c) {
+      if (c.route === "missing") addEv("A04", "F_cta_href", "cta:missing:" + c.idx, "weak", false, "ボタン等の本当の行き先を確認できません。押さないでください。");
+    });
+    // A04は同じ未観測性をmax1つ
+    var a04s = ev.filter(function (e) { return e.rule_id === "A04"; });
+    if (a04s.length > 1) { ev = ev.filter(function (e) { return e.rule_id !== "A04"; }); a04s[0].evidence_key = "cta:missing"; ev.push(a04s[0]); }
+    var hasA04 = ev.some(function (e) { return e.rule_id === "A04"; });
+
+    f.U_high = (f.U1 ? 1 : 0) + (f.U2 ? 1 : 0) + ((f.U1 || f.U2) && f.U3 ? 1 : 0) >= 2;
+    var routine = /(\d+\s*月分|請求番号|\d[\d,]*\s*円)/.test(body) && !f.U3 && /(支払|お支払|更新|請求)/.test(body) && !f.U1 && !f.A01x && !f.reply_secret;
+    f.routine_billing = routine;
+    // B06（weak）。通常期限通知（routine）・引用は除外
+    if ((f.U1 || f.U2) && !routine) addEv("B06", "F_urgency", "urgency", "weak", false, "「今すぐ」「本日中」「停止」などの言葉で手続きを急がせています。");
+    // B05 / A10 / B07
+    if (/[这您请们账码为您]|。。|、、|様様|頂きますようお願いします|ご確認してください|お客様各位様/.test(body)) addEv("B05", "F_language", "lang", "weak", false, "日本語として不自然な表現（翻訳調・不自然な漢字・句読点）があります。");
+    if (/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/.test((input.body || "") + (input.display_name || ""))) addEv("A10", "F_language", "lang", "weak", false, "見えない文字や文字方向を変える制御文字が含まれています。");
+    if (/\.(exe|scr|vbs|js|bat|cmd|lnk|iso|docm|xlsm|pptm)(\s|$|[」』）)])|\.(pdf|docx?|xlsx?)\.(exe|scr|js)|マクロを有効/i.test(body)) addEv("B07", "F_attachment", "attachment", "weak", false, "実行ファイルやマクロ付きなど、不審な添付ファイルに触れています。開かないでください。");
+    if (/添付/.test(body)) res.unknowns.push("attachment_unverified");
+
+    // 短縮URL・userinfo（§5.4）
+    urls.forEach(function (u) {
+      if (u.flags.indexOf("shortener") >= 0) addEv("SHORT", "F_cta_href", "cta:short:" + u.host, "weak", false, "短縮URL（" + u.host + "）が使われていて、最終的な行き先を確認できません。");
+      if (u.flags.indexOf("userinfo") >= 0) addEv("A12", "F_url_mismatch", "url:userinfo:" + u.host, "medium", false, "「@」を含むURLで、実際の接続先（" + u.host + "）を見誤らせる形になっています。");
+    });
+
+    // 補助weak（sender_claim時のみ）
+    if (hasClaim) {
+      if (/(円|料金|支払|請求|返金|口座|振込)/.test(body)) aux.B01 = 1;
+      if (urls.length || LINKWORD.test(body)) { if (!hasA04) aux.B02 = 1; }
+      if (!hasAddressee) aux.B03 = 1;
+      if (/(配信停止|配信解除|退会)/.test(body)) aux.B08 = 1;
+    }
+
+    // --- 送信元（email専用 E*/D*/From T*） ---
+    var fromRel = null;
+    if (isEmail) {
+      if (looksRandom(sender.local) && !/^[a-z]+\d{0,4}$/.test(sender.local))
+        addEv("E01", "F_sender_format", "sender_format", "weak", false, "送信元アドレスの@より前（" + sender.local + "）が意味のない文字列に見えます。", "research_proposal");
+      var reg = registrable(sender.host), regLabel = reg.split(".")[0];
+      var sub = sender.host.slice(0, sender.host.length - reg.length).replace(/\.$/, "");
+      if (looksRandom(regLabel)) addEv("E01", "F_sender_format", "sender_format", "weak", false, "送信元のドメイン（" + reg + "）がランダムな文字列に見えます。", "research_proposal");
+      else if (sub && sub.split(".").some(looksRandom)) addEv("E01", "F_sender_format", "sender_format", "weak", false, "送信元のサブドメイン（" + sub + "）が意味のない文字列に見えます。", "research_proposal");
+      if (claim) {
+        var b = claim.brand;
+        fromRel = fromRelation(sender, b, P);
+        res.namespace_assessments.push({ brand_id: b.id, host: sender.host, role: "sender", state: b.state, relation: fromRel.rel, anchors: b.anchors });
+        var key = "sender:" + b.id + ":" + sender.host;
+        if (fromRel.rel === "free") addEv("E03c", "F_sender_claim", key, "medium", true, b.label + "を名乗っていますが、送信元がフリーメール（" + sender.host + "）です。");
+        if (fromRel.rel === "other_entity") { addEv("D01", "F_sender_claim", key, "medium", true, b.label + "を名乗っていますが、送信元（" + sender.host + "）は別の主体のドメインです。"); }
+        if (fromRel.rel === "typo") addEv(fromRel.tid, "F_sender_claim", key, "medium", true, b.label + "を名乗っていますが、送信元に紛らわしい表記（" + sender.host + "）があります。");
+        // E03r: 範囲内の完全台帳のみ
+        if (b.e03r && ["send_matched", "pending"].indexOf(fromRel.rel) < 0) {
+          var inScope = b.e03rScope === "delivery" ? /(配送|お届け|荷物|発送|配達|不在)/.test(body)
+            : b.e03rScope === "securities_notice" ? /(約定|取引|口座|入出金|注文)/.test(body) : true;
+          if (inScope) addEv("E03r", "F_sender_claim", key, "strong", true, "公式が案内する、この種類の" + chName + "の送信元と一致しません（" + b.label + "、送信元: " + sender.host + "）。");
+          else res.unknowns.push("ledger_scope_unknown");
+        }
+        if (fromRel.rel === "unrelated") {
+          res.unknowns.push("namespace_from_unrelated:" + b.id);
+          var ex0 = (b.web[0] || "").replace(/^[~@]/, "");
+          addEv("NS_from", "F_info", "info:from_ns:" + b.id, "none", false, b.label + "を名乗っていますが、送信元（" + sender.host + "）は" + b.label + "の確認済みドメイン" + (ex0 ? "（例: " + ex0 + "）" : "") + "と結びつきません。公式の送信元一覧は完全ではないため、これだけで非公式と確定したものではありません。", "official_support");
+        }
+        if (/^unknown_/.test(fromRel.rel)) res.unknowns.push("namespace_unavailable");
+      }
+      // 表示名とlocal-partの具体的他者偽装（D02）: 例 amazon を名乗る local に別ブランド
+    }
+    // D03: 表示名のホモグリフ（SMSでも有効）
+    if (display) {
+      var dl = norm(display), mixed = /[a-z]/i.test(display) && /[\u0400-\u04FF]/.test(display);
+      P.brands.forEach(function (b) {
+        b.names.forEach(function (n) {
+          if (!/^[A-Za-z]{5,}/.test(n)) return;
+          var nl = n.toLowerCase();
+          var tok = dl.split(/[^a-z0-9\u0400-\u04ff]+/).filter(Boolean);
+          tok.forEach(function (t) { if (t !== nl && deHomoglyph(t) === nl) addEv("D03", "F_display_other", "display:" + b.id, "medium", true, "表示名の「" + display + "」が" + b.label + "に似せた紛らわしい文字を使っています。"); });
+        });
+      });
+      if (mixed && !ev.some(function (e) { return e.rule_id === "D03"; })) addEv("D03", "F_display_other", "display:mixed", "medium", false, "表示名にラテン文字とキリル文字が混在しています。");
+    }
+
+    // --- URL側 T*/A07 と関係（全チャネル） ---
+    var scopedFor = function (u) {
+      return claim && P.scopedRoutes.some(function (r) { return r.brand === claim.brand.id && r.channel === ch && hostIn(u.host, [r.host]) && (!r.purpose || new RegExp(r.purpose).test(body)); });
+    };
+    var urlRels = {};
+    if (claim) {
+      urls.forEach(function (u) {
+        var r = urlRelation(u, claim.brand, P, scopedFor);
+        urlRels[u.source + "|" + u.raw] = r;
+        res.namespace_assessments.push({ brand_id: claim.brand.id, host: u.host, role: "url", source: u.source, relation: r.rel });
+        var key = "url:" + claim.brand.id + ":" + u.host + ":deception";
+        if (r.rel === "typo") addEv(r.tid, "F_url_mismatch", key, "medium", true, claim.brand.label + "を名乗っていますが、リンク先（" + u.host + "）が" + claim.brand.label + "に似せた紛らわしいドメインです。");
+        if (r.rel === "other_entity") addEv("A07", "F_url_mismatch", key, "medium", true, claim.brand.label + "を名乗っていますが、リンク先（" + u.host + "）は別の主体のドメインです。");
+        if (r.rel === "unrelated") res.unknowns.push("namespace_url_unrelated:" + u.host);
+      });
+    }
+
+    // --- A11（§7.5の有効行のみ） ---
+    if (claim) {
+      var bid = claim.brand.id, a11 = claim.brand.a11;
+      var a11note = function (act) { return claim.brand.label + "は、この" + chName + "で" + act + "を行わないと案内しています。"; };
+      if (a11.indexOf("yamato_sms") >= 0 && ch === "sms" && /(配送|お届け|荷物|不在|配達|発送)/.test(body)) addEv("A11", "F_official_policy", "a11:yamato:sms", "strong", false, a11note("SMSでの配送通知"));
+      if (a11.indexOf("yamato_email_phrases") >= 0 && ch === "email" && /(お届け先情報が不完全です|配送先住所が間違っています|配達失敗通知|配送中止のお知らせ)/.test(body) && !QUOTE.test(body)) addEv("A11", "F_official_policy", "a11:yamato:email", "strong", false, a11note("このような配送通知メール"));
+      if (a11.indexOf("nta_demand") >= 0) {
+        var etaxNotice = /(メッセージボックス|格納|登録到達確認|宛名確認|再設定)/.test(body);
+        var demand = sents.some(function (s) { return /(納付|納税|未納|滞納|差押|差し押さえ|お支払)/.test(s.text) && (isRequest(s.text) || /(差押|差し押さえ).{0,10}(します|いたします|となります|執行)/.test(s.text)) && !QUOTE.test(s.text); });
+        if (demand && !etaxNotice) addEv("A11", "F_official_policy", "a11:nta:demand", "strong", false, a11note("国税の納付や差押えを求める連絡"));
+        else if (ch === "sms" && urls.some(function (u) { return u.source === "body"; }) && !etaxNotice) addEv("A11", "F_official_policy", "a11:nta:sms_url", "strong", false, a11note("SMSでのURL案内"));
+      }
+      if (a11.indexOf("etc_billing") >= 0 && ch === "email" && sents.some(function (s) { return /(請求|未払|未納|料金|お支払)/.test(s.text) && isRequest(s.text); })) addEv("A11", "F_official_policy", "a11:etc:billing", "strong", false, a11note("費用請求のメール"));
+      if (a11.indexOf("rakuten_card_number") >= 0 && ch === "email" && sents.some(function (s) { return /カード番号/.test(s.text) && isRequest(s.text) && SECRET_VERB.test(s.text) && !/末尾/.test(s.text); })) addEv("A11", "F_official_policy", "a11:rakuten_card:number", "strong", false, a11note("カード番号の聞き取り"));
+      if (a11.indexOf("identity_card") >= 0 && /(本人確認|出金制限)/.test(body) && sents.some(function (s) { return /(カード番号|有効期限|CVV|セキュリティコード|クレジットカード情報)/.test(s.text) && isRequest(s.text); })) addEv("A11", "F_official_policy", "a11:mercari:identity_card", "strong", false, a11note("本人確認でのカード情報入力の要求"));
+    }
+
+    // --- P16/P17（CTA単位、§4.8–4.9） ---
+    var fromWeak = false, fromUnrel = false, fromFree = false, senderAligned = false, fromTypo = false;
+    if (isEmail && fromRel) {
+      fromFree = fromRel.rel === "free"; fromUnrel = fromRel.rel === "unrelated"; fromTypo = fromRel.rel === "typo";
+      senderAligned = ["send_matched", "web_aligned", "related"].indexOf(fromRel.rel) >= 0;
+      fromWeak = fromFree || fromUnrel;
+    }
+    if (ch === "email" && !sender) fromWeak = true;
+    var hasA11 = ev.some(function (e) { return e.rule_id === "A11"; });
+    var routineGuard = routine && senderAligned && !fromTypo && !f.A01x && !f.reply_secret && !hasA11;
+    f.routine_guard = routineGuard;
+    if (claim) {
+      ctas.forEach(function (c) {
+        var a01 = c.q.a01, b04l = c.q.b04 && (c.route === "url" || c.route === "missing"), L = c.q.l;
+        var Q = a01 || b04l || L;
+        if (!Q) return;
+        var H = a01 || ((b04l || L) && f.U_high && !routine);
+        var best = null;
+        function cand(id, lvl, note, isNew) { var x = addComp(id, lvl, note, isNew); x.cta_id = c.idx; if (!best || LV[x.effective_level] > LV[best.effective_level]) best = x; }
+        var targets = c.route === "missing" ? [{ rel: "opaque", missing: true }] : c.urls.map(function (u) { var r = urlRelation(u, claim.brand, P, scopedFor); r.u = u; return r; });
+        res.route_assessments.push({ cta_id: c.idx, link_state: c.route === "missing" ? "missing" : targets.some(function (t) { return t.rel === "opaque"; }) ? "opaque" : c.route, source: c.declared ? "user_declared" : "body", reply_request: f.reply_secret });
+        targets.forEach(function (t) {
+          if (t.rel === "unrelated") {
+            if (a01 || (b04l && (f.U_high || fromUnrel || fromFree || ch === "sms"))) cand("P16uH", routineGuard ? "M" : "S", "名乗った会社の確認済みドメインと結びつかないリンクで、情報入力を求めています。", true);
+            else if (L && (f.U_high || ch === "sms" || fromFree || fromUnrel)) cand("P16uL", routineGuard ? "M" : "S", "名乗った会社の確認済みドメインと結びつかないリンクで、再認証・本人確認を求めています。", true);
+            else cand("P16u", "M", "情報の入力・手続きを求めていますが、入力された情報だけでは送信元やリンク先の正当性を確認できません。", true);
+          } else if (t.rel === "related_unverified") {
+            if (H) cand("P16bH", "S", "会社名に似た未確認のドメインで、強い期限圧力とともに情報入力を求めています。", true);
+            else cand("P16b", "M", "会社名を含む未確認のドメインで情報入力を求めています。正当性は確認できません。", true);
+          } else if (/^unknown_(candidate|empty)/.test(t.rel)) {
+            cand("P16c/f", "M", "情報の入力・手続きを求めていますが、この会社の公式ドメインはこのツールの台帳に未登録で確認できません。", true);
+          } else if (t.rel === "opaque") {
+            var scopedOK = t.scoped && senderAligned;
+            if (a01) cand("P17a", "S", "情報の入力を求めていますが、リンクの最終的な行き先を確認できません。具体的な秘密情報の入力も求めています。送信元が公式に見えても信用しないでください。", true);
+            else if (b04l && f.U_high && !routineGuard) cand("P17b", scopedOK ? "M" : "S", "カード情報の更新を急がせていますが、リンクの最終的な行き先を確認できません。", true);
+            else if (L && f.U_high && !routineGuard) cand("P17c", scopedOK ? "M" : "S", "再認証を急がせていますが、リンクの最終的な行き先を確認できません。", true);
+            else if (!t.missing && L && fromWeak && !t.scoped) cand("P17d", "S", "リンクの最終的な行き先を確認できず、送信元にも不整合があります。", true);
+            else cand("P17e", "M", routine ? "請求や更新の案内ですが、リンク先の正当性は確認できません。" : "情報の入力を求めていますが、リンクの最終的な行き先を確認できません。", true);
+          }
+          // P6/P11/P12: 確認できた欺瞞URL＋機微CTA（既存）
+          if (t.rel === "typo" || t.rel === "other_entity") cand("P6/P11/P12", "S", "紛らわしいドメインのリンクで情報入力を求めています。", false);
+          // P10: userinfo＋A01/B04、短縮＋A01
+          if (t.u && t.u.flags.indexOf("userinfo") >= 0 && (a01 || c.q.b04)) cand("P10", "S", "接続先を見誤らせるURLで情報入力を求めています。", false);
+        });
+        if (isEmail && fromRel && fromUnrel) {
+          if (claim.brand.e03r) cand("P16s", "S", "送信元が名乗った会社の確認済みの送信元と結びつきません。", true);
+          else cand("P16s_open", "M", "送信元が名乗った会社の確認済みドメインと結びつきません（公式の送信元一覧は完全ではないため、非公式と確定したわけではありません）。", true);
+        }
+        if (best) best.selected = true;
+      });
+      // P17r（秘密の返信・送付要求）
+      if (f.reply_secret) addComp("P17r", "S", "認証コードやカード情報などを返信・送信するよう求めています。返信せず別経路で確認してください。", true);
+    }
+    // 自称なしでも有効な既存P10（短縮＋A01）
+    ctas.forEach(function (c) {
+      if (c.q.a01 && c.urls.some(function (u) { return u.flags.indexOf("shortener") >= 0; })) addComp("P10", "S", "短縮URLの先で秘密情報の入力を求めています。", false);
+    });
+
+    // --- 集計（§4.4–4.5、context不使用） ---
+    var score = 0, nWeak = 0, nStrong = 0, mediums = [];
+    ev.forEach(function (e) {
+      score += W[e.strength];
+      if (e.strength === "weak") nWeak++;
+      if (e.strength === "strong") nStrong++;
+      if (e.strength === "medium") mediums.push(e);
+    });
+    var nAux = Object.keys(aux).length;
+    res.auxiliary_flags = Object.keys(aux);
+    var fams = {}; mediums.forEach(function (m) { fams[m.family] = 1; });
+    var level = "N";
+    var hasFromMis = ev.some(function (e) { return e.family === "F_sender_claim" && e.strength !== "weak" && e.is_mismatch; });
+    var hasUrlMis = ev.some(function (e) { return e.family === "F_url_mismatch" && e.is_mismatch; });
+    var linkLure = urls.some(function (u) { return u.source === "body"; }) || hasA04 || ctas.length > 0;
+    var comboS = [], comboM = [];
+    if (hasClaim && fromRel && fromRel.rel === "free") { if (linkLure || f.U1 || f.U2 || f.A01x || f.B04) comboS.push("P1"); else comboM.push("P1"); }
+    if (hasFromMis && ev.some(function (e) { return e.family === "F_sender_claim" && e.rule_id !== "E03r" && e.is_mismatch; }) && (linkLure || f.A02 || f.U1 || f.U2)) comboS.push("P4");
+    if (ev.some(function (e) { return e.rule_id === "D03"; }) && hasFromMis) comboS.push("P5");
+    if (hasFromMis && hasUrlMis) comboS.push("P13");
+    if (hasA04 && ev.some(function (e) { return e.rule_id === "B06"; })) comboM.push("P7");
+    if (hasA04 && (f.B04 || f.A01x)) comboM.push("P8");
+    if (hasClaim && urls.some(function (u) { return u.flags.indexOf("shortener") >= 0; })) comboM.push("P9");
+    if (ev.some(function (e) { return e.rule_id === "B06"; }) && (f.A02 || f.B04 || f.A01x) && aux.B03) comboM.push("P14");
+    comboS.forEach(function (id) { addComp(id, "S", "組合せ昇格（§4.5）", false); });
+    comboM.forEach(function (id) { addComp(id, "M", "組合せ昇格（§4.5）", false); });
+
+    if (nStrong >= 1) level = "S";
+    else if (comboS.length) level = "S";
+    else if (Object.keys(fams).length >= 2 && mediums.some(function (m) { return m.is_mismatch; })) level = "S";
+    else if (mediums.length >= 1 || score >= 4 || (nWeak >= 2 && hasClaim) || comboM.length) level = "M";
+    else if (nWeak >= 1 || nAux >= 2) level = "W";
+    comps.forEach(function (c) { if (LV[c.effective_level] > LV[level]) level = c.effective_level; });
+    // P16/P17のMは最低M（§4.8.5）
+    res.danger_level = level;
+    res.evidence = ev;
+    res.composite_rules = comps;
+
+    // --- verdict（§4.6–4.7） ---
+    var blocking = res.input_issues.filter(function (x) { return x !== "context_invalid" || true; });
+    if (level === "S") res.verdict = "strong_suspicion";
+    else if (blocking.length) res.verdict = "insufficient";
+    else {
+      var c2 = res.context_answer;
+      if (level === "M") res.verdict = "needs_review";
+      else if (level === "W") {
+        if (c2 === "yes") {
+          var exc = hasClaim || nWeak >= 2 || hasUrlMis || hasA04 || f.B04 || f.A01x;
+          res.verdict = exc ? "needs_review" : "no_clear_signal";
+        } else res.verdict = "needs_review";
+      } else res.verdict = c2 === "no" ? "needs_review" : "no_clear_signal";
+    }
+    res.flags = f;
+    res.display = buildDisplay(res, ch);
+    res.recommended_actions_ja = res.display.actions;
+    return res;
+  }
+
+  // ---------- 表示文言（§8） ----------
+  function buildDisplay(r, ch) {
+    var M = ch === "sms" ? "SMS" : "メール";
+    var d = { tone: "grey", headline: "", body: "", banner: "", notes: [], reasons: [], actions: [] };
+    var sorted = r.evidence.slice().sort(function (a, b) { return W[b.strength] - W[a.strength]; });
+    var compNotes = r.composite_rules.filter(function (c) { return c.selected || c.rule_id === "P17r"; }).map(function (c) {
+      return c.shadow || c.effective_level === "M" ? "情報の入力・手続きを求めていますが、入力された情報だけでは送信元やリンク先の正当性を確認できません。" + M + "内のリンクを使わず、公式アプリやブックマークから直接確認してください。" : c.note;
+    });
+    var seen = {};
+    compNotes.concat(sorted.map(function (e) { return e.note; })).forEach(function (n) { if (n && !seen[n]) { seen[n] = 1; d.reasons.push(n); } });
+    if (r.verdict === "strong_suspicion") {
+      d.tone = "red"; d.headline = "詐欺" + M + "の疑いが強いです";
+      d.body = "詐欺" + M + "によく見られる強い特徴があります。" + M + "内のリンク・電話番号・添付ファイルは使わず、公式アプリやブックマークから直接確認してください。";
+      if (r.context_answer === "yes") d.notes.push("心当たりがあっても、本物の通知を装った可能性があります。");
+      if (r.input_issues.length) d.notes.push("入力に不足があります（" + issueText(r.input_issues, ch).join("、") + "）。");
+    } else if (r.verdict === "needs_review") {
+      d.tone = "yellow"; d.headline = "注意が必要です（要確認）";
+      d.body = "本物かどうか確認が必要です。" + M + "内のリンクからではなく、公式アプリやブックマークした公式サイトで同じ通知があるか確認してください。";
+      if (r.context_answer === "no" && r.danger_level === "N") d.notes.push("心当たりがないとの回答を踏まえた確認のご案内です。これだけで詐欺と断定したわけではありません。");
+    } else if (r.verdict === "no_clear_signal") {
+      d.tone = "grey"; d.headline = "このツールでは判断できませんでした。公式アプリやブックマークから直接確認してください";
+      d.banner = "安全ではありません。" + M + "内のリンクは開かず、公式アプリやブックマークから直接確認してください。";
+      d.body = "これは詐欺と確定した意味でも、安全と確認できた意味でもありません。送信元の偽装やリンクの本当の行き先を確認できず、特徴が出ない詐欺もあります。";
+    } else {
+      d.tone = "grey"; d.headline = "情報が足りず判定できません";
+      d.body = ch === "sms" ? "SMSの本文と心当たりの回答を確認してください。送信元が電話番号や短い名前でも判定できます。メールアドレスに直す必要はありません。SMS内のリンクは開かないでください。"
+        : "差出人のメールアドレス（@を含む全体）、本文、心当たりの回答を確認してください。メール内のリンクは開かないでください。";
+      d.notes = issueText(r.input_issues, ch);
+    }
+    d.actions = [
+      M + "内のリンクや添付ファイルは開かず、返信や本文に書かれた番号への電話もしないでください。",
+      "公式アプリや、登録済みのブックマークから開いた公式サイトで、同じ通知があるか確認してください。",
+      "配信停止・退会も、" + M + "内のリンクではなく公式サイトやアプリの設定から行ってください。",
+      "すでにパスワード等を入力した場合は、自分で開いた公式サイトでパスワードを変更し、カード会社・金融機関の公式窓口へ連絡してください。",
+      "送金してしまった場合は、金融機関・警察・消費生活センターへ早めに相談してください（連絡先は公式サイトでご確認ください）。"
+    ];
+    return d;
+  }
+  function issueText(list, ch) {
+    var T = { body_empty: "本文が空です", from_unparseable: "送信元のメールアドレス（@を含む全体）を読み取れません", context_invalid: "「心当たり」の回答を選び直してください", channel_invalid: "種類（メール/SMS）の指定が不正です" };
+    return list.map(function (x) { return T[x] || x; });
+  }
+
+  g.MH_judge = judge;
+  g.MH_util = { esc: esc, maskSecrets: maskSecrets, registrable: registrable, lexical: lexical };
+})(typeof globalThis !== "undefined" ? globalThis : this);

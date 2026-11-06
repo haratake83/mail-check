@@ -1,0 +1,74 @@
+  *, *::before, *::after { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { background:#fff; color:#222; font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif; margin:0; line-height:1.65; }
+  main { max-width:680px; margin:40px auto; padding:0 16px; }
+  h1 { font-size:1.6rem; margin:0 0 4px; letter-spacing:0.02em; }
+  p.lead { color:#555; margin:0 0 8px; }
+  .privacy { background:#f7f7f7; border-radius:8px; padding:10px 12px; font-size:0.9rem; color:#444; margin:12px 0 8px; }
+  fieldset { border:none; margin:0; padding:0; }
+  legend, label.field { display:block; font-weight:700; margin:20px 0 6px; }
+  .req { color:#b00000; font-weight:700; font-size:0.85rem; margin-left:4px; }
+  .opt { font-weight:400; color:#888; }
+  .hint { display:block; font-weight:400; color:#666; font-size:0.88rem; margin:2px 0 6px; }
+  input[type="text"], input[type="email"], textarea, select {
+    width:100%; padding:12px; border:1px solid #ccc; border-radius:6px;
+    font-size:16px; font-family:inherit; background:#fff; min-height:48px;
+  }
+  input:focus, textarea:focus, select:focus { outline:2px solid #222; outline-offset:1px; border-color:#222; }
+  textarea { height:200px; resize:vertical; min-height:120px; }
+  .context-group { display:flex; flex-direction:column; gap:8px; margin-top:6px; }
+  .context-option {
+    display:flex; align-items:center; gap:10px; min-height:48px;
+    padding:10px 12px; border:1px solid #ccc; border-radius:6px; cursor:pointer;
+  }
+  .context-option:has(input:checked) { border-color:#222; background:#fafafa; }
+  .context-option input { width:20px; height:20px; margin:0; flex-shrink:0; }
+  .channel-row { display:flex; gap:10px; flex-wrap:wrap; }
+  .channel-row label {
+    display:flex; align-items:center; gap:8px; min-height:48px;
+    padding:8px 14px; border:1px solid #ccc; border-radius:6px; cursor:pointer; font-weight:400;
+  }
+  .channel-row label:has(input:checked) { border-color:#222; background:#fafafa; }
+  .channel-row input { width:18px; height:18px; margin:0; }
+  .optional-block { margin-top:8px; padding-top:8px; border-top:1px dashed #e5e5e5; }
+  button#check {
+    margin-top:24px; min-height:48px; padding:12px 32px; font-size:16px; font-family:inherit;
+    border:1px solid #222; background:#222; color:#fff; border-radius:6px; cursor:pointer;
+    touch-action:manipulation; width:100%;
+  }
+  button#check:hover, button#check:active { background:#444; }
+  #result { margin-top:28px; border:1px solid #ddd; border-radius:8px; padding:18px; display:none; }
+  #result.show { display:block; }
+  .verdict-head { margin:0 0 10px; font-size:1.25rem; line-height:1.4; }
+  .v-strong .verdict-head { color:#b00000; }
+  .v-review .verdict-head { color:#9a5b00; }
+  .v-none .verdict-head, .v-insuff .verdict-head { color:#333; }
+  .verdict-body { margin:0 0 12px; }
+  .safety-banner {
+    background:#fff3cd; border:2px solid #c9a227; border-radius:6px;
+    padding:12px 14px; margin:0 0 14px; font-weight:700; color:#5c4800;
+  }
+  .context-note { background:#f0f4f8; border-radius:6px; padding:10px 12px; margin:0 0 12px; font-size:0.95rem; }
+  .meta-row { display:flex; flex-wrap:wrap; gap:8px 16px; color:#666; font-size:0.9rem; margin:0 0 12px; }
+  .meta-row span { white-space:nowrap; }
+  h2.sec { font-size:1rem; margin:16px 0 6px; }
+  #points, #actions { margin:0; padding-left:1.2em; }
+  #points li, #actions li { margin:8px 0; overflow-wrap:anywhere; word-break:break-word; }
+  .disclaimer { display:block; margin-top:14px; color:#666; font-size:0.88rem; }
+  footer { margin:48px 0 24px; padding-top:16px; border-top:1px solid #eee; color:#888; font-size:0.85rem; }
+  footer p { margin:4px 0; }
+  @media (max-width:480px) {
+    main { margin:20px auto; padding:0 14px; }
+    h1 { font-size:1.35rem; }
+.v-red { border-color:#d9a0a0; }
+.v-yellow { border-color:#e0c77a; }
+.v-grey { border-color:#ccc; background:#fafafa; }
+.v-red .verdict-head { color:#b00000; }
+.v-yellow .verdict-head { color:#8a5200; }
+.v-grey .verdict-head { color:#333; }
+.notes { margin:0 0 12px; padding-left:1.2em; color:#444; }
+.url-guide { background:#f7f7f7; border-radius:6px; padding:10px 12px; font-size:0.88rem; color:#444; margin:4px 0 8px; }
+.url-guide p { margin:4px 0; }
+details.more { margin-top:8px; font-size:0.92rem; }
+details.more summary { cursor:pointer; color:#555; min-height:32px; }
+.opt { font-weight:400; color:#888; }
