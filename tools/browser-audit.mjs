@@ -8,7 +8,7 @@
 //   node tools/browser-audit.mjs --out /tmp/mail-check-audit
 //
 // 依存パッケージは不要です。Chrome の DevTools プロトコルを使います。
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import { createServer } from "http";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, createReadStream } from "fs";
 import path from "path";
@@ -250,6 +250,60 @@ fixture.secrets.filter((s) => s !== "ROUND2CLEARMARK").forEach((secret) => {
 });
 check("result still shows the host", pathText.includes("実ホスト: example.com"));
 
+async function judged() {
+  const view = await resultView();
+  const json = await evaluate(`JSON.stringify(window.MH_judge({
+    display_name: document.getElementById("display_name").value,
+    from_email: document.getElementById("from_email").value,
+    body: document.getElementById("body").value,
+    visible_link_url: document.getElementById("visible_link_url").value,
+    context_answer: (document.querySelector('input[name="context_answer"]:checked') || {}).value || "",
+    channel: (document.querySelector('input[name="channel"]:checked') || {}).value || "email"
+  }))`);
+  const formBody = await evaluate(`document.getElementById("body").value`);
+  return { view, json, formBody };
+}
+function absent(hay, secret) { return hay.indexOf(secret) < 0; }
+
+await go(origin + "/");
+await setFields(fixture.span_secrets);
+await judge();
+const spanCase = await judged();
+check("form keeps the typed auth codes", spanCase.formBody.includes("482913") && spanCase.formBody.includes("Ab9xQ2") && spanCase.formBody.includes("AbCd12"));
+["482913", "Ab9xQ2", "AbCd12"].forEach((secret) => {
+  check("screen hides " + secret, absent(spanCase.view.text, secret));
+  check("result JSON hides " + secret, absent(spanCase.json, secret));
+});
+check("span case still names the host", spanCase.view.text.includes("example.com") && spanCase.json.includes("example.com"));
+
+await go(origin + "/");
+await setFields(fixture.glued_exec_url);
+await judge();
+const glued = await judged();
+check("glued url path is absent from screen and JSON", absent(glued.view.text, "AbCd12") && absent(glued.json, "AbCd12"));
+check("glued exec lead is on screen and in JSON", glued.view.text.includes("先に読んでください") && glued.view.text.includes("アプリやコマンド等の実行を促す") && glued.json.includes("先に読んでください") && glued.json.includes("アプリやコマンド等の実行を促す"));
+check("glued exec lead is before the grey headline", glued.view.text.indexOf("先に読んでください") < glued.view.text.indexOf("判断できませんでした"));
+
+await go(origin + "/");
+await setFields(fixture.zip_view);
+await judge();
+const zipView = await judged();
+check("ordinary zip view has no execution lead", !zipView.view.lead && absent(zipView.view.text, "先に読んでください") && absent(zipView.view.text, "アプリやコマンド等の実行を促す") && absent(zipView.json, "malware_or_execution"));
+check("ordinary zip view is not called password-protected", absent(zipView.view.text, "パスワード付き") && absent(zipView.json, "パスワード付き"));
+
+await go(origin + "/");
+await setFields(fixture.zip_exec);
+await judge();
+const zipExec = await judged();
+check("zip execute lead is on screen and in JSON", zipExec.view.text.includes("先に読んでください") && zipExec.json.includes("アプリやコマンド等の実行を促す") && zipExec.json.includes("display"));
+check("zip execute without the password word is not described as password-protected", absent(zipExec.view.text, "パスワード付き") && absent(zipExec.json, "パスワード付き"));
+
+await go(origin + "/");
+await setFields(fixture.zip_password);
+await judge();
+const zipPw = await judged();
+check("password zip lead matches the evidence", zipPw.view.text.includes("先に読んでください") && zipPw.view.text.includes("パスワード付き") && zipPw.view.text.includes("断定したものではありません") && zipPw.json.includes("パスワード付き") && zipPw.json.includes("断定したものではありません"));
+
 await go(origin + "/");
 const netAtXss = net.length;
 await setFields(fixture.xss);
@@ -331,6 +385,7 @@ const report = {
     events: net.map((r) => ({ url: r.url, method: r.method, type: r.type, when: r.when, error: r.error || "" }))
   },
   source_indicators: sourceIndicators,
+  git_head: execSync("git rev-parse HEAD", { cwd: root }).toString().trim(),
   note: "合格は、このローカル実行で観測したネットワークイベントに入力が含まれなかった、という意味です。配信環境へは広げません。"
 };
 writeFileSync(path.join(outDir, "stage1_network_audit.json"), JSON.stringify(report, null, 2));

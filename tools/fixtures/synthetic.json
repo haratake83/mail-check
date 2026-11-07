@@ -1,6 +1,6 @@
 {
   "note": "予約ドメインと文書用アドレスだけです。実在の個人アドレスや、開くと危険なリンクは含みません。",
-  "secrets": ["sampletoken", "Ab12Cd34Ef56", "ab-cd.ef~12", "abcDEF123", "shortTok", "fragSecret", "s3cr3t", "hxxpSecret", "RealDataSecret", "ROUND2CLEARMARK"],
+  "secrets": ["sampletoken", "Ab12Cd34Ef56", "ab-cd.ef~12", "abcDEF123", "shortTok", "fragSecret", "s3cr3t", "hxxpSecret", "RealDataSecret", "ROUND2CLEARMARK", "AbCd12", "482913", "Ab9xQ2"],
   "ad": {
     "display_name": "サンプル商店",
     "from_email": "notice@example.com",
@@ -20,6 +20,31 @@
   "xss": {
     "from_email": "notice@example.com",
     "body": "<img src=\"https://192.0.2.1/p.png\" alt=\"x\"><form action=\"https://192.0.2.1/collect\" method=\"post\"><input name=\"body\" value=\"sampletoken\"></form><script>document.title='xss'</script> javascript:alert(1) metadata: keepThisWord",
+    "context_answer": "unknown"
+  },
+  "span_secrets": {
+    "from_email": "notice@example.com",
+    "body": "認証コード482913と認証コードAb9xQ2をexample.com/r/AbCd12で入力してください。",
+    "context_answer": "unknown"
+  },
+  "glued_exec_url": {
+    "from_email": "notice@example.com",
+    "body": "powershellを詳細はexample.com/r/AbCd12から貼り付けて実行してください。",
+    "context_answer": "unknown"
+  },
+  "zip_view": {
+    "from_email": "notice@example.com",
+    "body": "添付のZIPを開いてご確認ください。",
+    "context_answer": "unknown"
+  },
+  "zip_exec": {
+    "from_email": "notice@example.com",
+    "body": "心配ありません、ZIPを開いて実行してください。",
+    "context_answer": "unknown"
+  },
+  "zip_password": {
+    "from_email": "notice@example.com",
+    "body": "パスワード付きZIPを開いて実行してください。",
     "context_answer": "unknown"
   },
   "verdicts": {
