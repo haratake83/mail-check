@@ -53,7 +53,18 @@
     "Production and preview hosting, Vercel injection, and delivery access logs are not audited.",
     "B07, A05, and A04 score behavior is unchanged.",
     "Statistics are not collected. statistics remains null.",
-    "Extensions, physical memory wipe, autofill suggestions, and undo history are not fully observable.",
-    "This file records ea5e84d. A later commit that only adds this file is a different SHA; re-run the three commands on that SHA before calling it the tested head."
-  ]
+    "Extensions, physical memory wipe, autofill suggestions, and undo history are not fully observable."
+  ],
+  "recheck_after_evidence_file": {
+    "sha": "0691bdcd8f4e7469e3502b0bb5e77c106c3132f9",
+    "judge": "33/33",
+    "stage1": "135/0",
+    "browser_pass": 59,
+    "browser_fail": 0,
+    "browser_git_head_field": "0691bdcd8f4e7469e3502b0bb5e77c106c3132f9",
+    "network_events": 51,
+    "types": { "Document": 11, "Stylesheet": 10, "Script": 30 },
+    "methods": ["GET"],
+    "note": "These three commands were run while HEAD was 0691bdc. The audit JSON from that run has the same git_head."
+  }
 }
