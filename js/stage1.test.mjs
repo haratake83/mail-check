@@ -131,6 +131,7 @@ const clickTag = (click.purpose_assessment || []).find((p) => p.tag === "malware
 check("clickfix is execution tag without strong", click.danger_level === "N" && click.verdict === "no_clear_signal" && clickTag && clickTag.rule_ids.indexOf("OBS_CLICKFIX") >= 0, click.danger_level + " " + tags(click).join(","));
 check("clickfix text does not declare infection", clickTag && /感染は、この入力からは確認できません/.test(clickTag.explanation) && !/マルウェアです|感染しています/.test(clickTag.explanation));
 check("clickfix id is not a score", noObs(click));
+check("clickfix keeps the four verdicts and adds a lead ahead of the grey result", click.display.lead && /先に読んでください/.test(click.display.lead.headline) && /4つの判定区分と点数は変えていません/.test(click.display.lead.note) && /判断できませんでした/.test(click.display.headline));
 
 for (const ctx of ["yes", "no", "unknown"]) {
   const z = run("パスワード付きZIPを開いて実行してください。", { context_answer: ctx });
@@ -138,6 +139,19 @@ for (const ctx of ["yes", "no", "unknown"]) {
   check("zip execute " + ctx + " keeps warning and is not strong", z.danger_level === "N" && zt && /断定したものではありません/.test(zt.explanation), z.danger_level);
 }
 check("zip execute yes does not clear the tag", tags(run("パスワード付きZIPを開いて実行してください。", { context_answer: "yes" })).indexOf("malware_or_execution") >= 0);
+const reassure = run("心配ありません、ZIPを開いて実行してください。");
+check("reassurance does not cancel a separate execute request", tags(reassure).indexOf("malware_or_execution") >= 0 && reassure.danger_level !== "S" && reassure.display.lead, tags(reassure).join(",") + " " + reassure.danger_level);
+check("true macro negation stays untagged", tags(run("マクロを有効にしないでください。")).indexOf("malware_or_execution") < 0);
+check("citation of an execute request stays untagged", tags(run("詐欺メールでは「ZIPを開いて実行してください」と書かれます。")).indexOf("malware_or_execution") < 0);
+const splitNl = run("パスワード付きZIPを\n開いて実行してください。");
+const splitComma = run("パスワード付きZIPを、開いて実行してください。");
+check("newline-split execute request is tagged and not strong", tags(splitNl).indexOf("malware_or_execution") >= 0 && splitNl.danger_level !== "S", tags(splitNl).join(",") + " " + splitNl.danger_level);
+check("comma-split execute request is tagged", tags(splitComma).indexOf("malware_or_execution") >= 0 && splitComma.danger_level !== "S");
+const apk = run("公式アプリのAPKをインストールしてください。");
+const profile = run("公式アプリです。この構成プロファイルをインストールしてください。");
+check("official-app wording does not hide an apk install", tags(apk).indexOf("malware_or_execution") >= 0 && apk.danger_level !== "S" && (apk.purpose_assessment.find((p) => p.tag === "malware_or_execution").rule_ids || []).indexOf("OBS_APK") >= 0, tags(apk).join(",") + " " + apk.danger_level + " " + ids(apk));
+check("configuration profile install is an execution feature and not strong", tags(profile).indexOf("malware_or_execution") >= 0 && profile.danger_level !== "S" && (profile.purpose_assessment.find((p) => p.tag === "malware_or_execution").rule_ids || []).indexOf("OBS_PROFILE") >= 0, ids(profile) + " " + profile.danger_level);
+check("bare official-app install is not relabeled as execution", tags(run("公式アプリをインストールしてください。")).indexOf("malware_or_execution") < 0);
 
 const ad = run("春のキャンペーンです。新商品をご購入ください。");
 const adTag = (ad.purpose_assessment || []).find((p) => p.tag === "advertising_or_bulk");
@@ -161,6 +175,17 @@ const token = run(tokenBody);
 const plain = run("本文です。 https://example.com/a");
 check("query token is redacted everywhere in the result", !JSON.stringify(token).includes("SuperSecretTokenValue"));
 check("query token does not change score", token.danger_level === plain.danger_level && token.verdict === plain.verdict && ids(token) === ids(plain), ids(token) + " vs " + ids(plain));
+check("url display stops at the host", (token.url_assessments || []).some((a) => a.host === "example.com" && a.display === "https://example.com/＊＊＊") && !(token.url_assessments || []).some((a) => /\/a\?/.test(a.display || "")));
+const pathSecrets = ["Ab12Cd34Ef56", "ab-cd.ef~12", "jsessionid", "abcDEF123", "shortTok", "fragSecret", "s3cr3t", "hxxpSecret"];
+const pathCase = run("再設定 https://example.com/r/Ab12Cd34Ef56 と https://example.com/reset/ab-cd.ef~12;jsessionid=abcDEF123?t=shortTok#fragSecret と example.com/reset/ab-cd?token=s3cr3t と hxxps://example.com/reset/hxxpSecret");
+const pathJson = JSON.stringify(pathCase);
+pathSecrets.forEach((secret) => check("path secret absent from result: " + secret, !pathJson.includes(secret)));
+check("scheme-less url still exposes only the host", (pathCase.url_assessments || []).some((a) => a.host === "example.com" && a.display.indexOf("example.com") === 0 && a.display.indexOf("/＊＊＊") > 0));
+const metaOnly = run("項目は metadata: keepThisWord です。");
+check("metadata colon is not a data scheme", !(metaOnly.url_assessments || []).some((a) => a.source === "literal_scheme" || String(a.display || "").indexOf("data:") === 0));
+check("metadata text is not copied into the result", !JSON.stringify(metaOnly).includes("keepThisWord"));
+const dataReal = run("参照 data:text/plain,RealDataSecret です。");
+check("a real data scheme is still redacted", (dataReal.url_assessments || []).some((a) => a.display === "data:＊＊＊") && !JSON.stringify(dataReal).includes("RealDataSecret"));
 
 const userinfo = run("確認 https://user:secretpass@example.com/a です。");
 check("userinfo secret redacted", !JSON.stringify(userinfo).includes("secretpass"));
@@ -197,7 +222,8 @@ function stripComments(s) {
 check("from label and warning are present", html.includes("差出人（From）のメールアドレス") && html.includes("あなた自身のアドレス（宛先／To）") && html.includes("notice@example.com"));
 check("from help is present", html.includes("『差出人／From』") && html.includes("見つからなければ無理に操作しないでください。"));
 check("from can be spoofed is stated", html.includes("表示名やFromも偽装されるため、本物とは確認できません。"));
-check("clear button and audited privacy sentence", html.includes("入力を消す") && html.includes("完全消去を保証するものではありません") && html.includes("当サイトのサーバーや外部サービスには送信しません"));
+check("clear button and bounded privacy sentence", html.includes("入力を消す") && html.includes("完全消去を保証するものではありません") && html.includes("本番やプレビューの配信環境は未監査です") && html.includes("IPアドレス") && html.includes("戻る"));
+check("page does not claim production non-transmission", !html.includes("当サイトのサーバーや外部サービスには送信しません") && !html.includes("その通信に、入力した本文やURLは含めません"));
 check("stats unavailable sentence", html.includes("全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。"));
 check("stats options A/B/C are not implemented in the page", !html.includes("この端末のみ") && !html.includes("この端末での判定回数") && !ui.includes("この端末での判定回数"));
 check("page does not claim complete deletion", !html.includes("完全削除") && !html.includes("名前/アドレスだけ") && !html.includes("匿名化済み"));

@@ -16,43 +16,41 @@
   function norm(s) { return nfkc(s).toLowerCase(); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function maskSecrets(s) { return String(s).replace(/\d[\d\- ]{5,}\d/g, function (m) { return m.replace(/\d/g, "＊"); }); }
+  // 表示はホストまで。userinfo / パス / query / fragment は長さや区切りに関係なく出さない。
   function redactUrl(raw) {
     var original = String(raw || "").trim();
     if (!original) return "";
-    var defanged = original.replace(/^hxxp/i, "http");
-    var full = /^https?:\/\//i.test(defanged) ? defanged : "http://" + defanged;
+    if (/^(?:javascript|data)\s*:/i.test(original)) return (/^data/i.test(original) ? "data:" : "javascript:") + "＊＊＊";
+    var hxx = original.match(/^(hxxps?):\/\//i);
+    var hadHttp = /^https?:\/\//i.test(original);
+    var full = hxx ? original.replace(/^hxxp/i, "http") : (hadHttp ? original : "http://" + original);
     try {
       var x = new URL(full);
       if (x.protocol === "javascript:" || x.protocol === "data:") return x.protocol + "＊＊＊";
       var host = x.hostname.replace(/\.$/, "");
+      if (!host) return "＊＊＊";
       var port = x.port ? ":" + x.port : "";
-      var path = (x.pathname || "").replace(/[A-Za-z0-9_-]{20,}/g, "＊＊＊");
-      var parts = [];
-      if (x.search && x.search.length > 1) {
-        x.search.slice(1).split("&").forEach(function (pair) {
-          if (!pair) return;
-          var i = pair.indexOf("=");
-          var k = i < 0 ? pair : pair.slice(0, i);
-          var v = i < 0 ? "" : pair.slice(i + 1);
-          if (k.length > 20) k = "＊＊＊";
-          parts.push(i < 0 ? k : k + "=" + (v ? "＊＊＊" : ""));
-        });
-      }
-      var search = parts.length ? "?" + parts.join("&") : "";
-      var hash = x.hash ? "#＊＊＊" : "";
-      return maskSecrets(x.protocol + "//" + host + port + path + search + hash);
+      var beyondHost = !!(x.username || x.password) || !!(x.pathname && x.pathname !== "/") || !!x.search || !!x.hash;
+      var prefix = hxx ? hxx[1].toLowerCase() + "://" : (hadHttp ? x.protocol + "//" : "");
+      return prefix + host + port + (beyondHost ? "/＊＊＊" : (hadHttp || hxx ? "/" : ""));
     } catch (e2) {
-      return maskSecrets(original.replace(/\/\/[^/\s@]+@/g, "//＊＊＊@").replace(/([?&#][^=&\s#]{0,40})=([^&#\s]*)/g, function (_m, k, v) {
-        return k + "=" + (v ? "＊＊＊" : "");
-      }).replace(/[A-Za-z0-9_-]{20,}/g, "＊＊＊")).slice(0, 180);
+      var cut = original.replace(/^[a-z][a-z0-9+.-]*:\/*[^/\s@]*@/i, "");
+      cut = cut.replace(/[?#;].*$/, "");
+      cut = cut.replace(/\/.*$/, "/＊＊＊");
+      return cut.slice(0, 80);
     }
   }
   function redactSpan(s) {
-    var t = maskSecrets(String(s || ""));
-    t = t.replace(/https?:\/\/\S+/gi, function (u) { return redactUrl(u); });
-    t = t.replace(/\b(?:javascript|data)\s*:\S*/gi, function (m) {
-      return (/^\s*data/i.test(m) ? "data:" : "javascript:") + "＊＊＊";
+    var t = String(s || "");
+    t = t.replace(/(^|[^A-Za-z0-9_])((?:javascript|data)\s*:)\S*/gi, function (_m, pre, scheme) {
+      return pre + (/^data/i.test(scheme) ? "data:" : "javascript:") + "＊＊＊";
     });
+    t = t.replace(/hxxps?:\/\/\S+/gi, function (u) { return redactUrl(u); });
+    t = t.replace(/https?:\/\/\S+/gi, function (u) { return redactUrl(u); });
+    t = t.replace(/(^|[\s「」（(])((?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[\/?#][^\s]*)?)/gi, function (_m, pre, u) {
+      return pre + redactUrl(u);
+    });
+    t = maskSecrets(t);
     if (t.length > 80) t = t.slice(0, 80) + "…";
     return t;
   }
@@ -196,9 +194,9 @@
     return { urls: out, text: b };
   }
   function findLiteralSchemes(text) {
-    var out = [], seen = {}, re = /(?:javascript|data)\s*:/ig, m, s = String(text || "");
+    var out = [], seen = {}, re = /(?:^|[^A-Za-z0-9_])((?:javascript|data)\s*:)/ig, m, s = String(text || "");
     while ((m = re.exec(s))) {
-      var scheme = m[0].replace(/\s+/g, "").toLowerCase().replace(/:$/, "");
+      var scheme = m[1].replace(/\s+/g, "").toLowerCase().replace(/:$/, "");
       if (scheme !== "javascript" && scheme !== "data") continue;
       if (seen[scheme]) continue;
       seen[scheme] = 1;
@@ -337,26 +335,38 @@
       approx_suffix_not_operator: host ? registrable(host) : ""
     };
   }
-  function isBlockedContext(s) {
-    if (QUOTE.test(s) || NEG.test(s)) return true;
-    if (/(しないで|しないこと|しません|ではない|ではありません|添付しません|開かない|実行しない|有効にしない|入力しない|インストールしない|クリックしない)/.test(s)) return true;
-    if (/(ご注意ください|注意喚起|注意してください|してはいけません)/.test(s)) return true;
-    if (/(と書か|と書い|という文|という指示|というメール|引用します|例として)/.test(s)) return true;
-    if (/(完了しました|完了しています|受け付けました|設定済みです|操作は不要)/.test(s) && !/(してください|して下さい)/.test(s)) return true;
-    return false;
+  function isCitation(s) {
+    return /(と書か|と書い|という文|という指示|というメール|引用します|例として|詐欺メール|フィッシングメール|フィッシングでは)/.test(s);
   }
-  function blockedAt(sents, i) {
-    var s = sents[i].text;
-    if (isBlockedContext(s)) return true;
-    var prev = i > 0 ? sents[i - 1].text : "";
-    var next = i + 1 < sents.length ? sents[i + 1].text : "";
-    if (/(ご注意|注意喚起|詐欺|フィッシング|しないでください|実行しない)/.test(prev) && /(という|と書|という意味|の例)/.test(next)) return true;
-    return false;
+  function actionableText(text) {
+    if (!text || isCitation(text)) return "";
+    return text.split(/[、，,\n]/).filter(function (c) {
+      if (/(完了しました|完了しています|受け付けました|設定済みです|操作は不要)/.test(c) && !/(してください|して下さい|開いて|実行して)/.test(c)) return false;
+      if (/(ご注意ください|注意喚起|注意してください)/.test(c) && !/(してください|して下さい|開いて|実行して|インストールして)/.test(c)) return false;
+      if (/(しないで|しないこと|しません|開かない|実行しない|有効にしない|インストールしない|クリックしない|展開しない|してはいけません|添付しません)/.test(c)) {
+        var rest = c.replace(/[^、]{0,40}(しないでください|しないで下さい|ないでください|ないで下さい|しないで|しないこと|しません|開かない|実行しない|有効にしない|インストールしない|クリックしない|展開しない|してはいけません|添付しません)/g, " ");
+        return /(してください|して下さい|開いて実行|実行してください|インストールしてください)/.test(rest);
+      }
+      return true;
+    }).join(" ");
   }
-  function isOrdinaryAppInstall(text) {
-    if (!/(App\s*Store|Google\s*Play|Play\s*ストア|公式アプリストア|公式アプリ)/i.test(text)) return false;
-    if (/(AnyDesk|TeamViewer|powershell|マクロ|コマンドを実行|cmd\.exe|\.exe|\.scr)/i.test(text)) return false;
+  function isOrdinaryStoreInstall(text) {
+    if (!/(App\s*Store|Google\s*Play|Play\s*ストア|公式アプリストア)/i.test(text)) return false;
+    if (/(AnyDesk|TeamViewer|powershell|マクロ|コマンドを実行|cmd\.exe|\.exe|\.scr|\.apk|構成プロファイル|mobileconfig)/i.test(text)) return false;
     return true;
+  }
+  function positiveExec(text) {
+    if (!text || isOrdinaryStoreInstall(text)) return null;
+    if (!/(してください|して下さい|開いて|実行して|インストールして|貼り付けて)/.test(text)) return null;
+    var hits = [];
+    if (/マクロ/.test(text) && /有効/.test(text) && !/有効にしない/.test(text)) hits.push("macro");
+    if (/(パスワード付き\s*ZIP|パスワード付きZIP|パスワード付ZIP|\bZIP\b|ＺＩＰ|圧縮ファイル)/i.test(text) && /(開いて|開封|展開して|実行)/.test(text)) hits.push("zip");
+    if (/(powershell|コマンドプロンプト|cmd\.exe|Win\s*\+\s*R|ファイル名を指定して実行)/i.test(text) && /(実行|貼り付)/.test(text)) hits.push("clickfix");
+    if (/(AnyDesk|TeamViewer|遠隔操作|リモート操作)/i.test(text) && /(インストール|実行|起動)/.test(text)) hits.push("remote");
+    if (/\.(exe|scr|bat|cmd|vbs)(\s|$|を)/i.test(text) && /(実行|起動|開)/.test(text)) hits.push("exe");
+    if (/(?:\.apk\b|apkを)/i.test(text) && /(インストール|実行|開)/.test(text)) hits.push("apk");
+    if (/(構成プロファイル|mobileconfig)/i.test(text) && /(インストール|開|導入)/.test(text)) hits.push("profile");
+    return hits.length ? hits : null;
   }
   function buildPurpose(body, ev) {
     var tags = [];
@@ -365,43 +375,44 @@
     var adImp = false, adObj = false;
     var execRules = [], execSpans = [], zip = false, sawExec = false;
     var credRules = [], credSpans = [], sawCred = false;
-    sents.forEach(function (s, i) {
-      if (blockedAt(sents, i)) return;
-      var t = s.text;
-      var req = isRequest(t);
-      if (/(ご購入ください|お買い求めください|購入してください|お申し込みください|ご注文ください)/.test(t)) { adImp = true; adSpan = adSpan || t; }
-      if (/(新商品|セール|割引|キャンペーン|期間限定|おすすめ商品)/.test(t)) adObj = true;
-      if (!req) return;
-      if (!isOrdinaryAppInstall(t)) {
-        var hit = false;
-        if (/マクロ/.test(t) && /有効/.test(t)) {
-          hit = true;
+    function addExec(hits, raw) {
+      hits.forEach(function (h) {
+        if (h === "macro") {
           if (ev.some(function (e) { return e.rule_id === "A05"; }) && execRules.indexOf("A05") < 0) execRules.push("A05");
           if (ev.some(function (e) { return e.rule_id === "B07"; }) && execRules.indexOf("B07") < 0) execRules.push("B07");
         }
-        if (/(パスワード付き\s*ZIP|パスワード付きZIP|パスワード付ZIP)/i.test(t) && /(開|実行|展開)/.test(t)) {
-          hit = true; zip = true;
-          if (execRules.indexOf("OBS_ZIP_EXEC") < 0) execRules.push("OBS_ZIP_EXEC");
-        }
-        if (/(powershell|コマンドプロンプト|cmd\.exe|Win\s*\+\s*R|ファイル名を指定して実行)/i.test(t) && /(実行|貼り付)/.test(t)) {
-          hit = true;
+        if (h === "zip" && execRules.indexOf("OBS_ZIP_EXEC") < 0) { execRules.push("OBS_ZIP_EXEC"); zip = true; }
+        if (h === "clickfix") {
           if (execRules.indexOf("OBS_CLICKFIX") < 0) execRules.push("OBS_CLICKFIX");
           if (ev.some(function (e) { return e.rule_id === "A05"; }) && execRules.indexOf("A05") < 0) execRules.push("A05");
         }
-        if (/(AnyDesk|TeamViewer|遠隔操作|リモート操作)/i.test(t) && /(インストール|実行|起動)/.test(t)) {
-          hit = true;
+        if (h === "remote") {
           if (ev.some(function (e) { return e.rule_id === "A05"; }) && execRules.indexOf("A05") < 0) execRules.push("A05");
           if (execRules.indexOf("OBS_REMOTE") < 0) execRules.push("OBS_REMOTE");
         }
-        if (/\.(exe|scr|bat|cmd|vbs)(\s|$|を)/i.test(t) && /(実行|起動|開)/.test(t)) {
-          hit = true;
+        if (h === "exe") {
           if (ev.some(function (e) { return e.rule_id === "B07"; }) && execRules.indexOf("B07") < 0) execRules.push("B07");
           if (execRules.indexOf("OBS_EXE") < 0) execRules.push("OBS_EXE");
         }
-        if (hit) {
-          sawExec = true;
-          var sp = redactSpan(t);
-          if (sp && execSpans.length < 3) execSpans.push(sp);
+        if (h === "apk" && execRules.indexOf("OBS_APK") < 0) execRules.push("OBS_APK");
+        if (h === "profile" && execRules.indexOf("OBS_PROFILE") < 0) execRules.push("OBS_PROFILE");
+      });
+      sawExec = true;
+      var sp = redactSpan(raw);
+      if (sp && execSpans.length < 3 && execSpans.indexOf(sp) < 0) execSpans.push(sp);
+    }
+    sents.forEach(function (s, i) {
+      if (isCitation(s.text)) return;
+      var t = actionableText(s.text);
+      if (/(ご購入ください|お買い求めください|購入してください|お申し込みください|ご注文ください)/.test(t)) { adImp = true; adSpan = adSpan || s.text; }
+      if (/(新商品|セール|割引|キャンペーン|期間限定|おすすめ商品)/.test(t)) adObj = true;
+      var hits = positiveExec(t);
+      if (hits) addExec(hits, s.text);
+      else if (i + 1 < sents.length && !isCitation(sents[i + 1].text) && s.text.length <= 80 && sents[i + 1].text.length <= 80) {
+        var next = actionableText(sents[i + 1].text);
+        if (!positiveExec(next)) {
+          var pair = positiveExec(actionableText(s.text + "\n" + sents[i + 1].text));
+          if (pair) addExec(pair, s.text + " " + sents[i + 1].text);
         }
       }
       var device = /(デバイスコード|device\s*code)/i.test(t) && /(入力|貼り付け|送信|教えて)/.test(t);
@@ -410,7 +421,7 @@
         sawCred = true;
         if (device && ev.some(function (e) { return e.rule_id === "A06"; }) && credRules.indexOf("A06") < 0) credRules.push("A06");
         if (oauth && credRules.indexOf("OBS_OAUTH") < 0) credRules.push("OBS_OAUTH");
-        var csp = redactSpan(t);
+        var csp = redactSpan(s.text);
         if (csp && credSpans.length < 3) credSpans.push(csp);
       }
     });
@@ -656,7 +667,7 @@
           q.a01 = true; f.A01x = true;
           var replyish = /(返信|このメール|ご返送|メッセージで|電話で|お伝え|伝えて|メールで|送って|送信してください|reply@|@)/.test(t) && route !== "url";
           if (replyish) f.reply_secret = true;
-          addEv("A01", "F_identity", "identity:secret", "medium", false, "認証コード・暗証番号・カード番号・パスワード等の具体的な秘密情報の入力や送信を求めています。", "official_support", { spans: [maskSecrets(t).slice(0, 80)] });
+          addEv("A01", "F_identity", "identity:secret", "medium", false, "認証コード・暗証番号・カード番号・パスワード等の具体的な秘密情報の入力や送信を求めています。", "official_support", { spans: [t] });
         }
       }
       // B04
@@ -931,7 +942,18 @@
     res.url_limits = stage1.limits;
     res.unmatched_ctas = stage1.unmatched;
     res.statistics = null;
+    applyPurposeLead(res);
     return res;
+  }
+  function applyPurposeLead(res) {
+    var exec = (res.purpose_assessment || []).filter(function (p) { return p.tag === "malware_or_execution"; })[0];
+    res.display.lead = null;
+    if (!exec) return;
+    res.display.lead = {
+      headline: "先に読んでください：操作の実行を求める文面があります（確定ではありません）",
+      body: exec.explanation,
+      note: "この欄は、下の判定区分より先に読むための表示です。下の区分は従来の危険度の集計結果で、4つの判定区分と点数は変えていません。実行を求める文面があっても、その集計が強い危険にしていないことがあります。安全という意味ではありません。"
+    };
   }
 
   // ---------- 表示文言（§8） ----------

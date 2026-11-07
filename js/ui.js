@@ -140,17 +140,31 @@
     return wrap;
   }
 
+  function hasSubstantivePurpose(r) {
+    return (r.purpose_assessment || []).some(function (p) { return p.tag && p.tag !== "unknown"; });
+  }
+
   function render(r) {
     var d = r.display, box = $("result");
     box.textContent = "";
     box.className = "show v-" + d.tone;
+    if (d.lead) {
+      var lead = el("div", "lead-alert");
+      lead.appendChild(el("h2", null, d.lead.headline));
+      lead.appendChild(el("p", null, d.lead.body));
+      lead.appendChild(el("p", null, d.lead.note));
+      box.appendChild(lead);
+    }
     box.appendChild(el("h2", "verdict-head", d.headline));
     if (d.banner) box.appendChild(el("p", "safety-banner", d.banner));
     box.appendChild(el("p", "verdict-body", d.body));
     if (d.notes.length) { var ul0 = el("ul", "notes"); d.notes.forEach(function (n) { ul0.appendChild(el("li", null, n)); }); box.appendChild(ul0); }
     if (r.verdict !== "insufficient" || d.reasons.length) {
       box.appendChild(el("h3", "sec", "怪しいポイント"));
-      if (!d.reasons.length) box.appendChild(el("p", null, "このツールで検出できた特徴はありませんでした。特徴が出ない詐欺もあるため、安全という意味ではありません。"));
+      if (!d.reasons.length) {
+        if (hasSubstantivePurpose(r)) box.appendChild(el("p", null, "従来の危険度の集計では数えていない文面の特徴が、上の注意または目的の欄にあります。特徴が無いという意味ではありません。"));
+        else box.appendChild(el("p", null, "このツールで検出できた特徴はありませんでした。特徴が出ない詐欺もあるため、安全という意味ではありません。"));
+      }
       else {
         var ul = el("ul"); ul.id = "points";
         d.reasons.slice(0, 3).forEach(function (n) { ul.appendChild(el("li", null, n)); });
