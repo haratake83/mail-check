@@ -141,6 +141,12 @@ for (const ctx of ["yes", "no", "unknown"]) {
 check("zip execute yes does not clear the tag", tags(run("パスワード付きZIPを開いて実行してください。", { context_answer: "yes" })).indexOf("malware_or_execution") >= 0);
 const reassure = run("心配ありません、ZIPを開いて実行してください。");
 check("reassurance does not cancel a separate execute request", tags(reassure).indexOf("malware_or_execution") >= 0 && reassure.danger_level !== "S" && reassure.display.lead, tags(reassure).join(",") + " " + reassure.danger_level);
+check("bare zip execution is not described as password-protected", !/パスワード付き/.test((reassure.purpose_assessment.find((p) => p.tag === "malware_or_execution") || {}).explanation || "") && /アプリやコマンド等の実行を促す/.test(JSON.stringify(reassure.display.lead)));
+const zipView = run("添付のZIPを開いてご確認ください。");
+const zipOpen = run("ZIPを開いてください。");
+check("ordinary zip viewing is not an execution lead", tags(zipView).indexOf("malware_or_execution") < 0 && !zipView.display.lead && zipView.danger_level !== "S", tags(zipView).join(",") + " " + (zipView.display.lead && zipView.display.lead.headline));
+check("zip open without execute is not an execution lead", tags(zipOpen).indexOf("malware_or_execution") < 0 && !zipOpen.display.lead);
+check("password zip request keeps the non-assertion that matches the evidence", /パスワード付き/.test((run("パスワード付きZIPを開いて実行してください。").purpose_assessment.find((p) => p.tag === "malware_or_execution") || {}).explanation || ""));
 check("true macro negation stays untagged", tags(run("マクロを有効にしないでください。")).indexOf("malware_or_execution") < 0);
 check("citation of an execute request stays untagged", tags(run("詐欺メールでは「ZIPを開いて実行してください」と書かれます。")).indexOf("malware_or_execution") < 0);
 const splitNl = run("パスワード付きZIPを\n開いて実行してください。");
@@ -203,6 +209,20 @@ const cta = run("記事は https://example.com/news です。\nこちらのボ�
 check("article url does not erase the other CTA", ids(cta) === "A04" && cta.danger_level === "W" && (cta.unmatched_ctas || []).length >= 1, ids(cta));
 check("article url still assessed", (cta.url_assessments || []).some((a) => a.host === "example.com"));
 
+function allStrings(value, out) {
+  if (typeof value === "string") out.push(value);
+  else if (Array.isArray(value)) value.forEach(function (v) { allStrings(v, out); });
+  else if (value && typeof value === "object") Object.keys(value).forEach(function (k) { allStrings(value[k], out); });
+  return out;
+}
+const glued = run("powershellを詳細はexample.com/r/AbCd12から貼り付けて実行してください。");
+const otp = run("認証コード482913をexample.com/r/AbCd12で入力してください。");
+const alnum = run("認証コードAb9xQ2を入力してください。");
+for (const [name, result, secret] of [["glued-path", glued, "AbCd12"], ["otp-span", otp, "482913"], ["otp-path", otp, "AbCd12"], ["alnum-code", alnum, "Ab9xQ2"]]) {
+  check("secret absent from every output string: " + name, !allStrings(result, []).some(function (s) { return s.indexOf(secret) >= 0; }));
+}
+check("glued url keeps the host and the execution warning in JSON", allStrings(glued, []).some(function (s) { return s.indexOf("example.com") >= 0; }) && glued.display.lead && /アプリやコマンド等の実行を促す/.test(JSON.stringify(glued.display.lead)));
+check("clickfix warning survives in the JSON result", /先に読んでください/.test(JSON.stringify(click.display)) && /アプリやコマンド等の実行を促す/.test(JSON.stringify(click)));
 check("statistics is null not zero", spoof.statistics === null && storage.statistics === null && ad.statistics === null);
 check("no assessment claims same operator", [spoof, tenants, matched, storage].every((r) => (r.url_assessments || []).every((a) => a.boundary.same_operator === false && a.boundary.operator_id == null)));
 check("observational ids never enter the score", [spoof, storage, ad, click, oauth, app, macNeg].every(noObs));

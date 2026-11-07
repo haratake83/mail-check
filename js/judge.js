@@ -40,6 +40,18 @@
       return cut.slice(0, 80);
     }
   }
+  function maskSpanSecrets(s) {
+    var t = String(s || "");
+    t = t.replace(/(認証コード|確認コード|セキュリティコード|ワンタイムパスワード|ワンタイム|パスコード|暗証番号|パスワード|コード|PIN|OTP)([:：\s]*)([A-Za-z0-9_-]{4,})/gi, function (_m, label, sep) {
+      return label + sep + "＊＊＊";
+    });
+    t = t.replace(/\d(?:[\d\- ]*\d){3,}/g, function (m) {
+      var digits = (m.match(/\d/g) || []).length;
+      if (digits < 4) return m;
+      return m.replace(/\d/g, "＊");
+    });
+    return t;
+  }
   function redactSpan(s) {
     var t = String(s || "");
     t = t.replace(/(^|[^A-Za-z0-9_])((?:javascript|data)\s*:)\S*/gi, function (_m, pre, scheme) {
@@ -47,10 +59,12 @@
     });
     t = t.replace(/hxxps?:\/\/\S+/gi, function (u) { return redactUrl(u); });
     t = t.replace(/https?:\/\/\S+/gi, function (u) { return redactUrl(u); });
-    t = t.replace(/(^|[\s「」（(])((?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:[\/?#][^\s]*)?)/gi, function (_m, pre, u) {
-      return pre + redactUrl(u);
+    t = t.replace(/(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:\/[A-Za-z0-9\-._~%!$&'()*+,;=:@?#/]*)?/gi, function (u, at, whole) {
+      var prev = at > 0 ? whole.charAt(at - 1) : "";
+      if (/[A-Za-z0-9@_-]/.test(prev) || prev === "/") return u;
+      return redactUrl(u);
     });
-    t = maskSecrets(t);
+    t = maskSpanSecrets(t);
     if (t.length > 80) t = t.slice(0, 80) + "…";
     return t;
   }
@@ -360,7 +374,12 @@
     if (!/(してください|して下さい|開いて|実行して|インストールして|貼り付けて)/.test(text)) return null;
     var hits = [];
     if (/マクロ/.test(text) && /有効/.test(text) && !/有効にしない/.test(text)) hits.push("macro");
-    if (/(パスワード付き\s*ZIP|パスワード付きZIP|パスワード付ZIP|\bZIP\b|ＺＩＰ|圧縮ファイル)/i.test(text) && /(開いて|開封|展開して|実行)/.test(text)) hits.push("zip");
+    var passwordZip = /(パスワード付き\s*ZIP|パスワード付きZIP|パスワード付ZIP)/i.test(text);
+    var zipWord = passwordZip || /(?:\bZIP\b|ＺＩＰ|圧縮ファイル)/i.test(text);
+    var runProg = /(実行してください|実行して|起動して|ダブルクリック)/.test(text);
+    var openIt = /(開いて|開封して|展開して|開封|展開)/.test(text);
+    if (passwordZip && (openIt || runProg || /実行/.test(text))) hits.push("zip_password");
+    else if (zipWord && runProg) hits.push("zip_run");
     if (/(powershell|コマンドプロンプト|cmd\.exe|Win\s*\+\s*R|ファイル名を指定して実行)/i.test(text) && /(実行|貼り付)/.test(text)) hits.push("clickfix");
     if (/(AnyDesk|TeamViewer|遠隔操作|リモート操作)/i.test(text) && /(インストール|実行|起動)/.test(text)) hits.push("remote");
     if (/\.(exe|scr|bat|cmd|vbs)(\s|$|を)/i.test(text) && /(実行|起動|開)/.test(text)) hits.push("exe");
@@ -373,7 +392,7 @@
     var sents = sentences(body || "");
     var adSpan = "";
     var adImp = false, adObj = false;
-    var execRules = [], execSpans = [], zip = false, sawExec = false;
+    var execRules = [], execSpans = [], zipPassword = false, sawExec = false;
     var credRules = [], credSpans = [], sawCred = false;
     function addExec(hits, raw) {
       hits.forEach(function (h) {
@@ -381,7 +400,8 @@
           if (ev.some(function (e) { return e.rule_id === "A05"; }) && execRules.indexOf("A05") < 0) execRules.push("A05");
           if (ev.some(function (e) { return e.rule_id === "B07"; }) && execRules.indexOf("B07") < 0) execRules.push("B07");
         }
-        if (h === "zip" && execRules.indexOf("OBS_ZIP_EXEC") < 0) { execRules.push("OBS_ZIP_EXEC"); zip = true; }
+        if ((h === "zip_password" || h === "zip_run") && execRules.indexOf("OBS_ZIP_EXEC") < 0) execRules.push("OBS_ZIP_EXEC");
+        if (h === "zip_password") zipPassword = true;
         if (h === "clickfix") {
           if (execRules.indexOf("OBS_CLICKFIX") < 0) execRules.push("OBS_CLICKFIX");
           if (ev.some(function (e) { return e.rule_id === "A05"; }) && execRules.indexOf("A05") < 0) execRules.push("A05");
@@ -435,7 +455,7 @@
     }
     if (sawExec) {
       var expl = "アプリやコマンド等の実行を促す文面の特徴があります。マルウェアの有無や感染は、この入力からは確認できません。添付やリンクを開かず、公式アプリやブックマークから確認してください。";
-      if (zip) expl += "パスワード付きの圧縮ファイル自体を悪性と断定したものではありません。";
+      if (zipPassword) expl += "入力には、パスワード付きの圧縮ファイルを開くか実行する依頼がありました。ファイルがあること自体を悪性と断定したものではありません。";
       tags.push({ tag: "malware_or_execution", rule_ids: execRules, spans: execSpans, explanation: expl });
     }
     ["A01", "A02", "A03", "B04"].forEach(function (id) {
