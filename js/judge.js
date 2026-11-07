@@ -1,6 +1,9 @@
 /* メール判定.com — 判定エンジン（プロトコル v0.8 のブラウザ内サブセット）
- * ネットワークアクセスなし。入力URLへのアクセス・リダイレクト追跡・QR解析・SPF/DKIM検証はしない。
+ * ネットワークアクセスなし。入力URLへのアクセス・DNS・短縮展開・リダイレクト追跡・QR解析・SPF/DKIM検証はしない。
  * 入力文字列は全て信頼できないデータとして扱い、命令として解釈しない（§9）。
+ * 第1段階の purpose_assessment / url_assessments / statistics は説明専用。
+ * 危険度・4 verdict・重複排除・ゲート・既存の T* / A* / P* は変えない。統計案A/B/Cは保存しない。
+ * 実ホストと eTLD+1 を混ぜない。PSL private を完全には同梱していないため、登録境界は運営者として使わず不明にする。
  */
 (function (g) {
   "use strict";
@@ -13,6 +16,46 @@
   function norm(s) { return nfkc(s).toLowerCase(); }
   function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
   function maskSecrets(s) { return String(s).replace(/\d[\d\- ]{5,}\d/g, function (m) { return m.replace(/\d/g, "＊"); }); }
+  function redactUrl(raw) {
+    var original = String(raw || "").trim();
+    if (!original) return "";
+    var defanged = original.replace(/^hxxp/i, "http");
+    var full = /^https?:\/\//i.test(defanged) ? defanged : "http://" + defanged;
+    try {
+      var x = new URL(full);
+      if (x.protocol === "javascript:" || x.protocol === "data:") return x.protocol + "＊＊＊";
+      var host = x.hostname.replace(/\.$/, "");
+      var port = x.port ? ":" + x.port : "";
+      var path = (x.pathname || "").replace(/[A-Za-z0-9_-]{20,}/g, "＊＊＊");
+      var parts = [];
+      if (x.search && x.search.length > 1) {
+        x.search.slice(1).split("&").forEach(function (pair) {
+          if (!pair) return;
+          var i = pair.indexOf("=");
+          var k = i < 0 ? pair : pair.slice(0, i);
+          var v = i < 0 ? "" : pair.slice(i + 1);
+          if (k.length > 20) k = "＊＊＊";
+          parts.push(i < 0 ? k : k + "=" + (v ? "＊＊＊" : ""));
+        });
+      }
+      var search = parts.length ? "?" + parts.join("&") : "";
+      var hash = x.hash ? "#＊＊＊" : "";
+      return maskSecrets(x.protocol + "//" + host + port + path + search + hash);
+    } catch (e2) {
+      return maskSecrets(original.replace(/\/\/[^/\s@]+@/g, "//＊＊＊@").replace(/([?&#][^=&\s#]{0,40})=([^&#\s]*)/g, function (_m, k, v) {
+        return k + "=" + (v ? "＊＊＊" : "");
+      }).replace(/[A-Za-z0-9_-]{20,}/g, "＊＊＊")).slice(0, 180);
+    }
+  }
+  function redactSpan(s) {
+    var t = maskSecrets(String(s || ""));
+    t = t.replace(/https?:\/\/\S+/gi, function (u) { return redactUrl(u); });
+    t = t.replace(/\b(?:javascript|data)\s*:\S*/gi, function (m) {
+      return (/^\s*data/i.test(m) ? "data:" : "javascript:") + "＊＊＊";
+    });
+    if (t.length > 80) t = t.slice(0, 80) + "…";
+    return t;
+  }
   function host2ascii(h) {
     h = (h || "").trim().replace(/\.$/, "").toLowerCase();
     if (!h) return "";
@@ -152,6 +195,18 @@
     if (declared && nfkc(declared).trim()) add(nfkc(declared).trim(), "user_declared", -1);
     return { urls: out, text: b };
   }
+  function findLiteralSchemes(text) {
+    var out = [], seen = {}, re = /(?:javascript|data)\s*:/ig, m, s = String(text || "");
+    while ((m = re.exec(s))) {
+      var scheme = m[0].replace(/\s+/g, "").toLowerCase().replace(/:$/, "");
+      if (scheme !== "javascript" && scheme !== "data") continue;
+      if (seen[scheme]) continue;
+      seen[scheme] = 1;
+      out.push(scheme);
+      if (out.length >= 5) break;
+    }
+    return out;
+  }
 
   // ---------- 文単位の要求・否定ガード ----------
   function sentences(text) {
@@ -252,6 +307,260 @@
     return { rel: "unrelated" };
   }
 
+  // ---------- 第1段階（説明専用。addEv / addComp / 危険度には触らない） ----------
+  var URL_LIMITS = [
+    "評価しているのは、本文や入力欄に見えているURL文字列だけです。表示文字と実際のhrefの違いは、hrefが入力にないため確認できません。",
+    "台帳と一致して見えても、それは見える文字列上の一致だけです。実際のリンク先や送信者の正当性は確認していません。",
+    "正規のホストに見えても、公開ストレージ、フォーム、文書共有、乗っ取られたアカウントの悪用は区別できません。URLの構造は安全の根拠にしません。",
+    "公開サフィックス一覧の private 区画を完全には同梱していないため、eTLD+1 を運営者の単位としては使いません。別テナントを同一運営とは判断しません。登録境界は不明です。",
+    "同じホストでも、パスごとのテナントや利用者の投稿は区別できず、内容の正当性は証明できません。",
+    "短縮URLの展開、DNS照会、転送先、QR、添付、評判の照会はしていません。",
+    "末尾の句読点や括弧の切り違い、本文の途切れがあり得ます。"
+  ];
+  function visibleLedgerMatch(host, brand) {
+    if (!brand) return { match: "none", role: null };
+    if (hostIn(host, brand.web || [])) return { match: "visible_string_only", role: "web" };
+    if (hostIn(host, brand.send || [])) return { match: "visible_string_only", role: "send" };
+    if (hostIn(host, brand.pending || [])) return { match: "visible_string_only", role: "pending" };
+    return { match: "none", role: null };
+  }
+  function boundaryOf(host) {
+    return {
+      real_host: host || "",
+      etld1: null,
+      etld1_status: "unknown",
+      etld1_reason: "psl_private_section_not_fully_bundled",
+      operator_id: null,
+      used_as_operator: false,
+      same_operator: false,
+      comparison: "normalized_host_or_ledger_suffix",
+      approx_suffix_not_operator: host ? registrable(host) : ""
+    };
+  }
+  function isBlockedContext(s) {
+    if (QUOTE.test(s) || NEG.test(s)) return true;
+    if (/(しないで|しないこと|しません|ではない|ではありません|添付しません|開かない|実行しない|有効にしない|入力しない|インストールしない|クリックしない)/.test(s)) return true;
+    if (/(ご注意ください|注意喚起|注意してください|してはいけません)/.test(s)) return true;
+    if (/(と書か|と書い|という文|という指示|というメール|引用します|例として)/.test(s)) return true;
+    if (/(完了しました|完了しています|受け付けました|設定済みです|操作は不要)/.test(s) && !/(してください|して下さい)/.test(s)) return true;
+    return false;
+  }
+  function blockedAt(sents, i) {
+    var s = sents[i].text;
+    if (isBlockedContext(s)) return true;
+    var prev = i > 0 ? sents[i - 1].text : "";
+    var next = i + 1 < sents.length ? sents[i + 1].text : "";
+    if (/(ご注意|注意喚起|詐欺|フィッシング|しないでください|実行しない)/.test(prev) && /(という|と書|という意味|の例)/.test(next)) return true;
+    return false;
+  }
+  function isOrdinaryAppInstall(text) {
+    if (!/(App\s*Store|Google\s*Play|Play\s*ストア|公式アプリストア|公式アプリ)/i.test(text)) return false;
+    if (/(AnyDesk|TeamViewer|powershell|マクロ|コマンドを実行|cmd\.exe|\.exe|\.scr)/i.test(text)) return false;
+    return true;
+  }
+  function buildPurpose(body, ev) {
+    var tags = [];
+    var sents = sentences(body || "");
+    var adSpan = "";
+    var adImp = false, adObj = false;
+    var execRules = [], execSpans = [], zip = false, sawExec = false;
+    var credRules = [], credSpans = [], sawCred = false;
+    sents.forEach(function (s, i) {
+      if (blockedAt(sents, i)) return;
+      var t = s.text;
+      var req = isRequest(t);
+      if (/(ご購入ください|お買い求めください|購入してください|お申し込みください|ご注文ください)/.test(t)) { adImp = true; adSpan = adSpan || t; }
+      if (/(新商品|セール|割引|キャンペーン|期間限定|おすすめ商品)/.test(t)) adObj = true;
+      if (!req) return;
+      if (!isOrdinaryAppInstall(t)) {
+        var hit = false;
+        if (/マクロ/.test(t) && /有効/.test(t)) {
+          hit = true;
+          if (ev.some(function (e) { return e.rule_id === "A05"; }) && execRules.indexOf("A05") < 0) execRules.push("A05");
+          if (ev.some(function (e) { return e.rule_id === "B07"; }) && execRules.indexOf("B07") < 0) execRules.push("B07");
+        }
+        if (/(パスワード付き\s*ZIP|パスワード付きZIP|パスワード付ZIP)/i.test(t) && /(開|実行|展開)/.test(t)) {
+          hit = true; zip = true;
+          if (execRules.indexOf("OBS_ZIP_EXEC") < 0) execRules.push("OBS_ZIP_EXEC");
+        }
+        if (/(powershell|コマンドプロンプト|cmd\.exe|Win\s*\+\s*R|ファイル名を指定して実行)/i.test(t) && /(実行|貼り付)/.test(t)) {
+          hit = true;
+          if (execRules.indexOf("OBS_CLICKFIX") < 0) execRules.push("OBS_CLICKFIX");
+          if (ev.some(function (e) { return e.rule_id === "A05"; }) && execRules.indexOf("A05") < 0) execRules.push("A05");
+        }
+        if (/(AnyDesk|TeamViewer|遠隔操作|リモート操作)/i.test(t) && /(インストール|実行|起動)/.test(t)) {
+          hit = true;
+          if (ev.some(function (e) { return e.rule_id === "A05"; }) && execRules.indexOf("A05") < 0) execRules.push("A05");
+          if (execRules.indexOf("OBS_REMOTE") < 0) execRules.push("OBS_REMOTE");
+        }
+        if (/\.(exe|scr|bat|cmd|vbs)(\s|$|を)/i.test(t) && /(実行|起動|開)/.test(t)) {
+          hit = true;
+          if (ev.some(function (e) { return e.rule_id === "B07"; }) && execRules.indexOf("B07") < 0) execRules.push("B07");
+          if (execRules.indexOf("OBS_EXE") < 0) execRules.push("OBS_EXE");
+        }
+        if (hit) {
+          sawExec = true;
+          var sp = redactSpan(t);
+          if (sp && execSpans.length < 3) execSpans.push(sp);
+        }
+      }
+      var device = /(デバイスコード|device\s*code)/i.test(t) && /(入力|貼り付け|送信|教えて)/.test(t);
+      var oauth = /(OAuth|認可コード|同意画面)/i.test(t) && /(入力|同意|許可|サインイン)/.test(t) && /(コード|トークン|許可|同意)/.test(t);
+      if (device || oauth) {
+        sawCred = true;
+        if (device && ev.some(function (e) { return e.rule_id === "A06"; }) && credRules.indexOf("A06") < 0) credRules.push("A06");
+        if (oauth && credRules.indexOf("OBS_OAUTH") < 0) credRules.push("OBS_OAUTH");
+        var csp = redactSpan(t);
+        if (csp && credSpans.length < 3) credSpans.push(csp);
+      }
+    });
+    if (adImp && adObj) {
+      tags.push({
+        tag: "advertising_or_bulk",
+        rule_ids: ["OBS_AD"],
+        spans: adSpan ? [redactSpan(adSpan)] : [],
+        explanation: "商品やサービスの宣伝・一斉配信型の文面の特徴があります。未承諾の広告かどうかは、この入力だけでは確認できません。"
+      });
+    }
+    if (sawExec) {
+      var expl = "アプリやコマンド等の実行を促す文面の特徴があります。マルウェアの有無や感染は、この入力からは確認できません。添付やリンクを開かず、公式アプリやブックマークから確認してください。";
+      if (zip) expl += "パスワード付きの圧縮ファイル自体を悪性と断定したものではありません。";
+      tags.push({ tag: "malware_or_execution", rule_ids: execRules, spans: execSpans, explanation: expl });
+    }
+    ["A01", "A02", "A03", "B04"].forEach(function (id) {
+      if (ev.some(function (e) { return e.rule_id === id; }) && credRules.indexOf(id) < 0) credRules.push(id);
+    });
+    if (credRules.some(function (id) { return id === "A01" || id === "A02" || id === "A03" || id === "B04"; })) sawCred = true;
+    if (sawCred) {
+      var cexpl = "認証情報や支払い情報の入力・送信を促す文面の特徴があります。この入力だけでは、本物の手続きかどうかは確認できません。";
+      if (credRules.indexOf("A06") >= 0 || credRules.indexOf("OBS_OAUTH") >= 0) cexpl += "デバイスコードやOAuthの誘導は、感染ではなく認証情報の目的候補です。";
+      tags.push({ tag: "credential_or_payment", rule_ids: credRules, spans: credSpans, explanation: cexpl });
+    }
+    if (!tags.length) {
+      tags.push({
+        tag: "unknown",
+        rule_ids: [],
+        spans: [],
+        explanation: "根拠のある目的の候補はありません。タグがないことは、安全である証明ではありません。感染しているか、添付ファイルの中身が何かは、この入力からは確認できません。"
+      });
+    }
+    return tags;
+  }
+  function buildUrlAssessments(urls, ctas, ev, comps, urlRels, claim, body, declared) {
+    var items = [];
+    var ctaByKey = {};
+    ctas.forEach(function (c) {
+      (c.urls || []).forEach(function (u) {
+        var k = u.source + "|" + u.raw;
+        if (!ctaByKey[k]) ctaByKey[k] = [];
+        ctaByKey[k].push(c);
+      });
+    });
+    urls.forEach(function (u, idx) {
+      var features = [];
+      function addF(id, text) { features.push({ id: id, text: text }); }
+      if (u.flags.indexOf("userinfo") >= 0) addF("userinfo", "URLに利用者情報（@の前）が含まれ、接続先を見誤りやすい形です。この特徴だけでは悪性と判断しません。");
+      if (u.flags.indexOf("ip_host") >= 0) addF("ip_host", "ホストがIPアドレスの形です。この特徴だけでは悪性と判断しません。");
+      if ((u.host || "").indexOf("xn--") >= 0) addF("punycode", "ホストにpunycode（xn--）が含まれます。この特徴だけでは悪性と判断しません。");
+      if (u.flags.indexOf("shortener") >= 0) addF("shortener", "短縮URLの形です。展開していないため最終的な行き先は不明です。この特徴だけでは悪性と判断しません。");
+      if (u.flags.indexOf("tracking") >= 0) addF("tracking", "計測用とされるホストの台帳に含まれます。中身は確認していません。この特徴だけでは悪性と判断しません。");
+      if (u.flags.indexOf("redirect") >= 0) addF("redirect", "転送用とされるホストです。転送先は展開していません。この特徴だけでは悪性と判断しません。");
+      if (u.flags.indexOf("http") >= 0) addF("http", "http（暗号化されていない表記）です。この特徴だけでは悪性と判断しません。");
+      if (/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/.test(u.raw)) addF("invisible", "URL文字列に見えない文字が含まれます。この特徴だけでは悪性と判断しません。");
+      var led = visibleLedgerMatch(u.host, claim && claim.brand);
+      var matchNote;
+      if (!claim) matchNote = "送り主の名乗りと台帳を一対にできなかったため、公式かどうかは不明です。比較しているのは実ホストだけで、eTLD+1 では判断しません。";
+      else if (led.match === "visible_string_only") matchNote = "見える文字列のホストが、台帳の許すホスト境界（完全一致、または台帳に書かれたサブドメイン）と一致しました。これは見える文字列上の一致だけであり、実際のhref・送信者・安全性は確認していません。";
+      else matchNote = "実ホストは、名乗っている組織の台帳が許すホスト境界（完全一致、または台帳に書かれたサブドメイン）と一致しません。左側のラベルや eTLD+1 の近似では公式にしません。";
+      var ctaNotes = [], ctaRules = [];
+      (ctaByKey[u.source + "|" + u.raw] || []).forEach(function (c) {
+        if (c.q && c.q.a01) citeRule("A01", ev, ctaRules, ctaNotes);
+        if (c.q && c.q.b04) citeRule("B04", ev, ctaRules, ctaNotes);
+        comps.forEach(function (comp) {
+          if (comp.cta_id === c.idx && comp.note && ctaNotes.indexOf(comp.note) < 0) {
+            ctaNotes.push(comp.note);
+            if (ctaRules.indexOf(comp.rule_id) < 0) ctaRules.push(comp.rule_id);
+          }
+        });
+      });
+      var existingNotes = [], existingRules = [];
+      ev.forEach(function (e) {
+        if (!e.note || e.note.indexOf(u.host) < 0) return;
+        if (e.family === "F_url_mismatch" || e.rule_id === "SHORT" || e.rule_id === "A12" || e.rule_id === "T03" || e.rule_id === "T01" || e.rule_id === "T02" || e.rule_id === "T04") {
+          if (existingNotes.indexOf(e.note) < 0) existingNotes.push(e.note);
+          if (existingRules.indexOf(e.rule_id) < 0) existingRules.push(e.rule_id);
+        }
+      });
+      var rel = urlRels[u.source + "|" + u.raw] || null;
+      items.push({
+        url_index: idx,
+        source: u.source,
+        display: redactUrl(u.raw),
+        host: u.host,
+        boundary: boundaryOf(u.host),
+        ledger_match: led.match,
+        ledger_role: led.role,
+        ledger_relation: rel ? rel.rel : null,
+        match_note: matchNote,
+        features: features,
+        cta_rule_ids: ctaRules,
+        cta_notes: ctaNotes,
+        existing_rule_ids: existingRules,
+        existing_notes: existingNotes,
+        unknowns: URL_LIMITS.slice(),
+        structure_not_conclusive: true,
+        fetched: false,
+        executed: false
+      });
+    });
+    var seenScheme = {};
+    findLiteralSchemes(body).concat(findLiteralSchemes(declared || "")).forEach(function (scheme) {
+      if (seenScheme[scheme]) return;
+      seenScheme[scheme] = 1;
+      var label = scheme === "data"
+        ? "data: で始まる文字列です。リンクにせず、中身を読み込んでいません。この文字列だけでは悪性と判断しません。"
+        : "javascript: で始まる文字列です。リンクにせず、実行していません。この文字列だけでは悪性と判断しません。";
+      items.push({
+        url_index: null,
+        source: "literal_scheme",
+        display: scheme + ":＊＊＊",
+        host: "",
+        boundary: boundaryOf(""),
+        ledger_match: "none",
+        ledger_role: null,
+        ledger_relation: null,
+        match_note: "スクリプトやデータの文字列であり、リンク先としては扱いません。",
+        features: [{ id: scheme, text: label }],
+        cta_rule_ids: [],
+        cta_notes: [],
+        existing_rule_ids: [],
+        existing_notes: [],
+        unknowns: URL_LIMITS.slice(),
+        structure_not_conclusive: true,
+        fetched: false,
+        executed: false
+      });
+    });
+    var unmatched = [];
+    ctas.forEach(function (c) {
+      if (c.route === "missing" || !c.urls || !c.urls.length) {
+        unmatched.push({
+          rule_ids: c.viewOnly ? ["A04"] : [],
+          span: redactSpan(c.text),
+          note: "この行動要求に対応するURL文字列は取れていません。ほかのURLがあっても、この要求は消していません。"
+        });
+      }
+    });
+    return { items: items, unmatched: unmatched, limits: URL_LIMITS.slice() };
+  }
+  function citeRule(ruleId, ev, rules, notes) {
+    var e = null, i;
+    for (i = 0; i < ev.length; i++) if (ev[i].rule_id === ruleId) { e = ev[i]; break; }
+    if (!e) return;
+    if (rules.indexOf(ruleId) < 0) rules.push(ruleId);
+    if (e.note && notes.indexOf(e.note) < 0) notes.push(e.note);
+  }
+
   // ---------- メイン ----------
   function judge(input, opts) {
     opts = opts || {};
@@ -311,7 +620,7 @@
 
     var ex = extractUrls(body, input.visible_link_url, P);
     var urls = ex.urls;
-    res.urls_parsed = urls.map(function (u) { return { raw: maskSecrets(u.raw), host: u.host, registrable: u.registrable, flags: u.flags, source: u.source }; });
+    res.urls_parsed = urls.map(function (u) { return { raw: redactUrl(u.raw), host: u.host, registrable: u.registrable, flags: u.flags.slice(), source: u.source }; });
     if (urls.some(function (u) { return u.source === "user_declared"; })) res.unknowns.push("user_declared_url_unverified");
     var sents = sentences(body);
     var claims = detectClaims(display, body, P);
@@ -611,8 +920,17 @@
       } else res.verdict = c2 === "no" ? "needs_review" : "no_clear_signal";
     }
     res.flags = f;
+    ev.forEach(function (e) {
+      if (e.spans && e.spans.length) e.spans = e.spans.map(redactSpan);
+    });
     res.display = buildDisplay(res, ch);
     res.recommended_actions_ja = res.display.actions;
+    var stage1 = buildUrlAssessments(urls, ctas, ev, comps, urlRels, claim, body, input.visible_link_url);
+    res.purpose_assessment = buildPurpose(body, ev);
+    res.url_assessments = stage1.items;
+    res.url_limits = stage1.limits;
+    res.unmatched_ctas = stage1.unmatched;
+    res.statistics = null;
     return res;
   }
 
