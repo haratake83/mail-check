@@ -1,0 +1,70 @@
+{
+  "purpose": "Separate the a482f85 browser re-run from later commits. Do not treat an older 40/0 as the result for a later head.",
+  "baseline_a482f85": {
+    "sha": "a482f85e565c5663bfe3defae67a28af5f5a5428",
+    "command": "node tools/browser-audit.mjs",
+    "script": "the browser audit before span/ZIP display checks",
+    "pass": 40,
+    "fail": 0,
+    "network_events": 26,
+    "types": {
+      "Document": 6,
+      "Stylesheet": 5,
+      "Script": 15
+    },
+    "methods": [
+      "GET"
+    ],
+    "hosts_are_local_only": true,
+    "storage_local_keys": []
+  },
+  "with_span_and_zip_checks": {
+    "sha": "ea5e84d3fff77dd939073c68045497cf30d350ee",
+    "commands": [
+      "node js/judge.test.mjs",
+      "node js/stage1.test.mjs",
+      "node tools/browser-audit.mjs"
+    ],
+    "judge": "33/33",
+    "stage1": "135/0",
+    "browser_pass": 59,
+    "browser_fail": 0,
+    "network_events": 51,
+    "types": {
+      "Document": 11,
+      "Stylesheet": 10,
+      "Script": 30
+    },
+    "methods": [
+      "GET"
+    ],
+    "hosts_are_local_only": true,
+    "storage_local_keys": [],
+    "added_checks": [
+      "6-digit code 482913, alphanumeric code Ab9xQ2, and path AbCd12 are absent from the on-screen result and from JSON.stringify of MH_judge",
+      "the form still shows those values; the audit does not rewrite the typed input",
+      "glued URL execution request keeps the lead text in the screen and in the JSON",
+      "添付のZIPを開いてご確認ください has no execution lead and does not say パスワード付き",
+      "ZIPを開いて実行してください has the execution lead and does not say パスワード付き",
+      "パスワード付きZIPを開いて実行してください names パスワード付き and says the file itself is not declared malicious"
+    ]
+  },
+  "remaining": [
+    "Production and preview hosting, Vercel injection, and delivery access logs are not audited.",
+    "B07, A05, and A04 score behavior is unchanged.",
+    "Statistics are not collected. statistics remains null.",
+    "Extensions, physical memory wipe, autofill suggestions, and undo history are not fully observable."
+  ],
+  "recheck_after_evidence_file": {
+    "sha": "0691bdcd8f4e7469e3502b0bb5e77c106c3132f9",
+    "judge": "33/33",
+    "stage1": "135/0",
+    "browser_pass": 59,
+    "browser_fail": 0,
+    "browser_git_head_field": "0691bdcd8f4e7469e3502b0bb5e77c106c3132f9",
+    "network_events": 51,
+    "types": { "Document": 11, "Stylesheet": 10, "Script": 30 },
+    "methods": ["GET"],
+    "note": "These three commands were run while HEAD was 0691bdc. The audit JSON from that run has the same git_head."
+  }
+}

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>メール判定.com — 怪しいメール・SMSのチェック（参考情報）</title>
-<meta name="description" content="メール本文を貼ると、詐欺・フィッシングによく見られる特徴を指摘します。ブラウザ内だけで判定し、入力内容は送信しません。参考情報であり、安全性を保証するものではありません。">
+<meta name="description" content="メールやSMSの文字情報から、詐欺によく見られる特徴を指摘します。参考情報であり、安全性を保証するものではありません。">
 <meta property="og:title" content="メール判定.com">
 <meta property="og:description" content="メール本文を貼ると、怪しいポイントを指摘します。参考情報です。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='14' width='52' height='36' rx='4' fill='none' stroke='%23222' stroke-width='4'/%3E%3Cpath d='M8 17l24 18 24-18' fill='none' stroke='%23222' stroke-width='4'/%3E%3C/svg%3E">
@@ -14,9 +14,9 @@
 <main>
   <h1>メール判定.com</h1>
   <p class="lead">メール本文を貼ると、詐欺によく見られる怪しいポイントを指摘します。参考情報です。</p>
-  <p class="privacy">判定はお使いのブラウザ内だけで行います。入力内容はどこにも送信されません。メール内のリンクは開かないでください。</p>
+  <p class="privacy">判定はお使いのブラウザ内だけで行います。メール内のリンクは開かないでください。入力した文字の扱いの説明は、判定ボタンの下にあります。</p>
 
-  <form id="form" novalidate>
+  <form id="form" novalidate autocomplete="off">
     <fieldset>
       <legend>種類 <span class="opt">（任意）</span></legend>
       <div class="channel-row">
@@ -29,13 +29,16 @@
     <span class="hint" id="dn_hint">メールアプリに表示されている名前（例: ヤマト運輸）</span>
     <input id="display_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200">
 
-    <label class="field" for="from_email" id="from_label">送信元アドレス</label>
-    <span class="hint" id="from_hint">@ を含むメールアドレス全体（例: info@example.com）</span>
+    <label class="field" for="from_email" id="from_label">差出人（From）のメールアドレス</label>
+    <p class="from-warn" id="from_warn">届いたメールの送り主のアドレスを入力してください。あなた自身のアドレス（宛先／To）や、パスワード・カード番号は入力しないでください。</p>
+    <span class="hint" id="from_hint">例: notice@example.com</span>
+    <p class="from-help" id="from_help">メール上部の差出人名の横にある詳細表示（▼など）を開き、『差出人／From』の@を含むアドレス全体を確認してください。アプリにより表示方法が異なります。返信画面や本文のリンクを開く必要はありません。見つからなければ無理に操作しないでください。</p>
+    <p class="from-note" id="from_note">表示名やFromも偽装されるため、本物とは確認できません。</p>
     <input id="from_email" type="text" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="320">
 
     <label class="field" for="body" id="body_label">メール本文</label>
     <span class="hint">本文をそのまま貼り付けてください。</span>
-    <textarea id="body" maxlength="50000"></textarea>
+    <textarea id="body" maxlength="50000" autocomplete="off" spellcheck="false"></textarea>
 
     <fieldset>
       <legend id="ctx_q">このメールに心当たりはありますか？</legend>
@@ -55,6 +58,9 @@
     <input id="visible_link_url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000">
 
     <button type="submit" id="check">判定する</button>
+    <button type="button" id="clear">入力を消す</button>
+    <p class="privacy-detail" id="privacy_detail">この版の画面は、入力した本文やURLを送り出す処理を含みません。確認できるのは、このリポジトリのコードと、同梱の手順で行うローカルブラウザ監査の範囲です。本番やプレビューの配信環境は未監査です。ページを開くときの接続記録（IPアドレス、ブラウザの種類、時刻など）は配信事業者に残ります。その記録は、入力を送っていないこととは別です。「入力を消す」で画面の入力と解析結果を消せます。ブラウザの戻る、再読込、自動入力、元に戻す操作で内容が残ることがあります。端末のメモリー等からの完全消去を保証するものではありません。</p>
+    <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。</p>
   </form>
 
   <section id="result" aria-live="polite"></section>

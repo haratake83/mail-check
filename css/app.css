@@ -60,6 +60,7 @@
   @media (max-width:480px) {
     main { margin:20px auto; padding:0 14px; }
     h1 { font-size:1.35rem; }
+  }
 .v-red { border-color:#d9a0a0; }
 .v-yellow { border-color:#e0c77a; }
 .v-grey { border-color:#ccc; background:#fafafa; }
@@ -72,3 +73,18 @@
 details.more { margin-top:8px; font-size:0.92rem; }
 details.more summary { cursor:pointer; color:#555; min-height:32px; }
 .opt { font-weight:400; color:#888; }
+.from-warn { background:#fff8f0; border:1px solid #f0d7b5; border-radius:6px; padding:10px 12px; font-size:0.9rem; margin:6px 0; }
+.from-help, .from-note { font-size:0.88rem; color:#444; margin:4px 0 8px; }
+button#clear {
+  margin-top:8px; min-height:48px; padding:12px 32px; font-size:16px; font-family:inherit;
+  border:1px solid #222; background:#fff; color:#222; border-radius:6px; cursor:pointer; width:100%;
+}
+.privacy-detail, .stat-note { font-size:0.88rem; color:#333; background:#f7f7f7; border-radius:8px; padding:10px 12px; margin:12px 0; }
+.url-item { border-top:1px solid #eee; padding-top:8px; margin-top:8px; }
+.url-literal, .url-host, .url-boundary, .url-match, .url-feat, .purpose-expl, .purpose-fixed, .purpose-span {
+  overflow-wrap:anywhere; word-break:break-word;
+}
+.url-literal { color:#222; text-decoration:none; background:#f7f7f7; padding:8px; border-radius:6px; font-family:ui-monospace, monospace; }
+.lead-alert { border:2px solid #9a5b00; background:#fff6e8; border-radius:8px; padding:12px 14px; margin:0 0 14px; }
+.lead-alert h2 { margin:0 0 8px; font-size:1.12rem; color:#7a3e00; line-height:1.45; }
+h3.sec { font-size:1rem; margin:16px 0 6px; }
