@@ -14,7 +14,7 @@
 <main>
   <h1>メール判定.com</h1>
   <p class="lead">メール本文を貼ると、詐欺によく見られる怪しいポイントを指摘します。このサービスは、差出人がメールアドレスのメールだけを判定します。参考情報です。</p>
-  <p class="privacy">判定はお使いのブラウザ内だけで行います。メール内のリンクは開かないでください。入力した文字の扱いの説明は、<a href="#privacy_detail">判定ボタンの下</a>にあります。</p>
+  <p class="privacy">入力した本文やURLは、お使いの端末の中だけで判定します。メール内のリンクは開かないでください。詳しくは<a href="#privacy_detail">判定ボタンの下</a>にあります。</p>
 
   <form id="form" novalidate autocomplete="off">
     <label class="field" for="display_name" id="dn_label">メールに記載された名前 <span class="opt">（任意）</span></label>
@@ -33,6 +33,7 @@
 
     <label class="field" for="body" id="body_label">メール本文</label>
     <span class="hint">本文をそのまま貼り付けてください。</span>
+    <p class="hint" id="body_privacy">貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。</p>
     <textarea id="body" maxlength="50000" autocomplete="off" spellcheck="false"></textarea>
 
     <fieldset>
@@ -54,7 +55,11 @@
 
     <button type="submit" id="check">判定する</button>
     <button type="button" id="clear">入力を消す</button>
-    <p class="privacy-detail" id="privacy_detail">この版の画面は、入力した本文やURLを送り出す処理を含みません。確認できるのは、このリポジトリのコードと、同梱の手順で行うローカルブラウザ監査の範囲です。本番やプレビューの配信環境は未監査です。ページを開くときの接続記録（IPアドレス、ブラウザの種類、時刻など）は配信事業者に残ります。その記録は、入力を送っていないこととは別です。「入力を消す」で画面の入力と解析結果を消せます。ブラウザの戻る、再読込、自動入力、元に戻す操作で内容が残ることがあります。端末のメモリー等からの完全消去を保証するものではありません。</p>
+    <div class="privacy-detail" id="privacy_detail">
+      <p>入力した本文やURLは、お使いの端末（ブラウザ）の中だけで判定します。当サイトに送られたり、保存されたりすることはありません。</p>
+      <p>ほかのサイトと同じように、ページを開いた時刻やブラウザの種類などの一般的なアクセス記録は配信会社に残りますが、入力した内容は含まれません。</p>
+      <p>画面の入力は「入力を消す」ボタンですぐ消せます。共用の端末では、使い終わったらページを閉じてください。</p>
+    </div>
     <p id="history_pending">受付履歴の機能は準備中です。</p>
     <section id="history_panel" hidden>
       <h2>このアドレスの受付履歴</h2>
@@ -75,7 +80,7 @@
   <footer>
     <p>これは参考情報です。最終的な判断はご自身でお願いします。</p>
     <p>本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。</p>
-    <p>判定プロトコル v0.9（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p>判定プロトコル v0.9.1（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a href="terms.html">利用規約（下書き）</a> ／ <a href="#privacy_detail">プライバシーに関する説明</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
   </footer>

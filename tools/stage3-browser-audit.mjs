@@ -66,8 +66,8 @@ async function go(url) {
   await send("Page.navigate", { url });
   await evaluate(`new Promise((resolve) => { if (document.readyState === "complete") resolve(true); else addEventListener("load", () => resolve(true), { once: true }); })`);
 }
-async function shot(name) {
-  const pic = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
+async function shot(name, beyond) {
+  const pic = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: beyond !== false });
   writeFileSync(path.join(outDir, name), Buffer.from(pic.data, "base64"));
 }
 async function judge(body) {
@@ -81,6 +81,13 @@ function check(name, ok, detail) { if (ok) passCount++; else { failures.push({ n
 await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await go(origin + "/");
 check("history ui is hidden on the form", (await evaluate(`document.getElementById("history_panel").hidden && document.getElementById("history_pending").innerText.includes("準備中") && document.getElementById("list_link").hidden`)) === true);
+await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+await evaluate(`document.getElementById("body_privacy").scrollIntoView({ block: "center" })`);
+await shot("v091_body_note_mobile.png", false);
+await evaluate(`document.getElementById("privacy_detail").scrollIntoView({ block: "center" })`);
+await shot("v091_privacy_mobile.png", false);
+check("plain privacy text is on the form", (await evaluate(`document.getElementById("privacy_detail").innerText`)).includes("当サイトに送られたり、保存されたりすることはありません") && (await evaluate(`document.getElementById("body_privacy").innerText`)).includes("ページを閉じると消えます"));
+await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await shot("stage3_form_hidden_desktop.png");
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await shot("stage3_form_hidden_mobile.png");
@@ -91,7 +98,7 @@ let open = await evaluate(`document.querySelector(".attention-break").open`);
 const more = await evaluate(`document.querySelector(".attention-expl-more").textContent`);
 check("percent result shows 80 and the short non-probability sentence", text.includes("注意度（目安・確率ではありません）") && text.includes("80%") && text.includes("注意度の数値は、詐欺の確率でも安全の度合いでもありません。") && text.includes("詐欺メールの疑いが強いです") && !text.includes("確からしさの目安"), text.slice(0, 240));
 check("longer explanation stays in the collapsed details", open === false && more.includes("詐欺である確率・的中率・安全の度合いではありません"));
-check("version label is visible", text.includes("attention-scale-2026-11-09-a") && text.includes("判定プロトコル版：0.9"));
+check("version label is visible", text.includes("attention-scale-2026-11-09-a") && text.includes("判定プロトコル版：0.9.1"));
 await shot("stage3_percent_desktop.png");
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await shot("stage3_percent_mobile.png");
