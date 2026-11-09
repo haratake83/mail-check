@@ -1,0 +1,29 @@
+{
+  "does_not_replace": ["tools/audit-evidence.json", "tools/stage2-audit-evidence.json", "tools/stage3-audit-evidence.json"],
+  "note": "Earlier evidence files are for earlier SHAs. They are not the result of this v0.9 run. This file names the implementation commit. A later evidence-only commit does not change the behavior that was measured.",
+  "tested_sha": "93f5670ff38477ae3f2f9fbbe6d4065f8858ec38",
+  "commands": [
+    "node js/judge.test.mjs",
+    "node js/stage1.test.mjs",
+    "node js/stage2.test.mjs",
+    "node js/stage3.test.mjs",
+    "node js/v09.test.mjs",
+    "node tools/browser-audit.mjs",
+    "node tools/stage2-browser-audit.mjs",
+    "node tools/stage3-browser-audit.mjs"
+  ],
+  "results": {
+    "judge": "33/33",
+    "stage1": "135/0",
+    "stage2_contract": "36/0",
+    "stage3_contract": "24/0",
+    "v09": "26/0",
+    "stage1_browser": { "pass": 59, "fail": 0, "git_head": "93f5670ff38477ae3f2f9fbbe6d4065f8858ec38" },
+    "stage2_browser": { "pass": 20, "fail": 0, "git_head": "93f5670ff38477ae3f2f9fbbe6d4065f8858ec38" },
+    "stage3_browser": { "pass": 10, "fail": 0, "network_events": 23, "methods": ["GET"], "git_head": "93f5670ff38477ae3f2f9fbbe6d4065f8858ec38" }
+  },
+  "scope": "Local node and local Chrome only. Production and preview URLs were not opened. Vercel was not deployed. The 404 routes were checked by a local server that applies vercel.json.",
+  "attention_scale": "attention-scale-2026-11-09-a",
+  "visible_protocol": "v0.9",
+  "schema": "0.9-jp-email"
+}

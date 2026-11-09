@@ -1,5 +1,11 @@
 {
   "cleanUrls": true,
+  "routes": [
+    { "src": "/tools(?:/.*)?$", "status": 404 },
+    { "src": "/js/.+\\.test\\.mjs$", "status": 404 },
+    { "src": "/README\\.md$", "status": 404 },
+    { "handle": "filesystem" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

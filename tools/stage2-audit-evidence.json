@@ -1,0 +1,27 @@
+{
+  "does_not_replace": "tools/audit-evidence.json",
+  "note": "tools/audit-evidence.json records f422c5e and earlier heads. It is not evidence for this stage2 SHA.",
+  "tested_sha": "be63793654f8e9316b2cf35873b9eb22d1baad0d",
+  "commands": [
+    "node js/judge.test.mjs",
+    "node js/stage1.test.mjs",
+    "node js/stage2.test.mjs",
+    "node tools/browser-audit.mjs",
+    "node tools/stage2-browser-audit.mjs"
+  ],
+  "results": {
+    "judge": "33/33",
+    "stage1": "135/0",
+    "stage2_contract": "32/0",
+    "stage1_browser": { "pass": 59, "fail": 0, "network_events": 61, "git_head": "be63793654f8e9316b2cf35873b9eb22d1baad0d" },
+    "stage2_browser": { "pass": 17, "fail": 0, "network_events": 14, "git_head": "be63793654f8e9316b2cf35873b9eb22d1baad0d" }
+  },
+  "scope": "Local Chrome and node only. Production and preview hosting were not contacted. The disabled adapter sent no address, body, or POST.",
+  "remaining": [
+    "No backend, retention period, keys, subject IDs, rate limits, or publication review desk.",
+    "Numeric thresholds in the contract test are synthetic only.",
+    "productionReady and privacyVerified stay false.",
+    "Test files remain in the repository and would be downloadable if the whole folder is hosted. Pages do not load them.",
+    "B07, A05, and A04 are unchanged."
+  ]
+}
