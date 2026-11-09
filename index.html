@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>メール判定.com — 怪しいメール・SMSのチェック（参考情報）</title>
-<meta name="description" content="メールやSMSの文字情報から、詐欺によく見られる特徴を指摘します。参考情報であり、安全性を保証するものではありません。">
+<title>メール判定.com — 怪しいメールのチェック（参考情報）</title>
+<meta name="description" content="メールの文字情報から、詐欺によく見られる特徴を指摘します。差出人がメールアドレスのメールだけが対象です。参考情報であり、安全性を保証するものではありません。">
 <meta property="og:title" content="メール判定.com">
 <meta property="og:description" content="メール本文を貼ると、怪しいポイントを指摘します。参考情報です。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='14' width='52' height='36' rx='4' fill='none' stroke='%23222' stroke-width='4'/%3E%3Cpath d='M8 17l24 18 24-18' fill='none' stroke='%23222' stroke-width='4'/%3E%3C/svg%3E">
@@ -13,28 +13,23 @@
 <body>
 <main>
   <h1>メール判定.com</h1>
-  <p class="lead">メール本文を貼ると、詐欺によく見られる怪しいポイントを指摘します。参考情報です。</p>
-  <p class="privacy">判定はお使いのブラウザ内だけで行います。メール内のリンクは開かないでください。入力した文字の扱いの説明は、判定ボタンの下にあります。</p>
+  <p class="lead">メール本文を貼ると、詐欺によく見られる怪しいポイントを指摘します。このサービスは、差出人がメールアドレスのメールだけを判定します。参考情報です。</p>
+  <p class="privacy">判定はお使いのブラウザ内だけで行います。メール内のリンクは開かないでください。入力した文字の扱いの説明は、<a href="#privacy_detail">判定ボタンの下</a>にあります。</p>
 
   <form id="form" novalidate autocomplete="off">
-    <fieldset>
-      <legend>種類 <span class="opt">（任意）</span></legend>
-      <div class="channel-row">
-        <label><input type="radio" name="channel" value="email" checked> メール</label>
-        <label><input type="radio" name="channel" value="sms"> SMS</label>
-      </div>
-    </fieldset>
-
     <label class="field" for="display_name" id="dn_label">メールに記載された名前 <span class="opt">（任意）</span></label>
     <span class="hint" id="dn_hint">メールアプリに表示されている名前（例: ヤマト運輸）</span>
     <input id="display_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200">
 
     <label class="field" for="from_email" id="from_label">メールに記載されたアドレス</label>
-    <p class="from-warn" id="from_warn">届いたメールの送り主のアドレスを入力してください。あなた自身のアドレス（宛先／To）や、パスワード・カード番号は入力しないでください。</p>
-    <span class="hint" id="from_hint">例: notice@example.com</span>
-    <p class="from-help" id="from_help">メール上部の差出人名の横にある詳細表示（▼など）を開き、『差出人／From』の@を含むアドレス全体を確認してください。アプリにより表示方法が異なります。返信画面や本文のリンクを開く必要はありません。見つからなければ無理に操作しないでください。</p>
-    <p class="from-note" id="from_note">表示名やFromも偽装されるため、本物とは確認できません。</p>
+    <p class="from-warn" id="from_warn">届いたメールの送り主のアドレスを入力してください。あなた自身のアドレス（宛先／To）や、パスワード・カード番号は入力しないでください。電話番号やSMS・SNSの送信元は対象外です。</p>
     <input id="from_email" type="text" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="320">
+    <details class="from-help-details">
+      <summary>差出人アドレスの確認方法</summary>
+      <span class="hint" id="from_hint">例: notice@example.com</span>
+      <p class="from-help" id="from_help">メール上部の差出人名の横にある詳細表示（▼など）を開き、『差出人／From』の@を含むアドレス全体を確認してください。アプリにより表示方法が異なります。返信画面や本文のリンクを開く必要はありません。見つからなければ無理に操作しないでください。</p>
+      <p class="from-note" id="from_note">表示名やFromも偽装されるため、本物とは確認できません。</p>
+    </details>
 
     <label class="field" for="body" id="body_label">メール本文</label>
     <span class="hint">本文をそのまま貼り付けてください。</span>
@@ -59,9 +54,11 @@
 
     <button type="submit" id="check">判定する</button>
     <button type="button" id="clear">入力を消す</button>
-    <section id="history_panel">
+    <p class="privacy-detail" id="privacy_detail">この版の画面は、入力した本文やURLを送り出す処理を含みません。確認できるのは、このリポジトリのコードと、同梱の手順で行うローカルブラウザ監査の範囲です。本番やプレビューの配信環境は未監査です。ページを開くときの接続記録（IPアドレス、ブラウザの種類、時刻など）は配信事業者に残ります。その記録は、入力を送っていないこととは別です。「入力を消す」で画面の入力と解析結果を消せます。ブラウザの戻る、再読込、自動入力、元に戻す操作で内容が残ることがあります。端末のメモリー等からの完全消去を保証するものではありません。</p>
+    <p id="history_pending">受付履歴の機能は準備中です。</p>
+    <section id="history_panel" hidden>
       <h2>このアドレスの受付履歴</h2>
-      <p id="history_query_note">まだ照会していません。この画面の設定では履歴の照会先がなく、入力したアドレスは送信しません。</p>
+      <p id="history_query_note">まだ照会していません。この画面には履歴の照会先がありません。</p>
       <button type="button" id="history_query">このアドレスの受付履歴を見る</button>
       <div id="history_result"></div>
       <label class="context-option" for="history_consent"><input type="checkbox" id="history_consent"> 統計への受付登録に同意する（初期はオフ）</label>
@@ -70,7 +67,6 @@
       <p id="history_submit_result"></p>
       <p><a href="terms.html">利用規約（下書き）</a></p>
     </section>
-    <p class="privacy-detail" id="privacy_detail">この版の画面は、入力した本文やURLを送り出す処理を含みません。確認できるのは、このリポジトリのコードと、同梱の手順で行うローカルブラウザ監査の範囲です。本番やプレビューの配信環境は未監査です。ページを開くときの接続記録（IPアドレス、ブラウザの種類、時刻など）は配信事業者に残ります。その記録は、入力を送っていないこととは別です。「入力を消す」で画面の入力と解析結果を消せます。ブラウザの戻る、再読込、自動入力、元に戻す操作で内容が残ることがあります。端末のメモリー等からの完全消去を保証するものではありません。</p>
     <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。</p>
   </form>
 
@@ -79,11 +75,12 @@
   <footer>
     <p>これは参考情報です。最終的な判断はご自身でお願いします。</p>
     <p>本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。</p>
-    <p>判定プロトコル v0.8（スキーマ 0.8-jp-4in+2opt）／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p>判定プロトコル v0.9（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a href="terms.html">利用規約（下書き）</a> ／ <a href="#privacy_detail">プライバシーに関する説明</a></p>
-    <p><a href="list.html">判定に使われたアドレス一覧</a></p>
+    <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
   </footer>
 </main>
+<script src="js/flags.js"></script>
 <script src="js/protocol-data.js"></script>
 <script src="js/judge.js"></script>
 <script src="js/stage2-public.js"></script>

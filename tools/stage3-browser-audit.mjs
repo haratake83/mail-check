@@ -80,12 +80,18 @@ function check(name, ok, detail) { if (ok) passCount++; else { failures.push({ n
 
 await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await go(origin + "/");
+check("history ui is hidden on the form", (await evaluate(`document.getElementById("history_panel").hidden && document.getElementById("history_pending").innerText.includes("準備中") && document.getElementById("list_link").hidden`)) === true);
+await shot("stage3_form_hidden_desktop.png");
+await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+await shot("stage3_form_hidden_mobile.png");
+await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await judge("ギフトカードの番号を送ってください。");
 let text = await evaluate(`document.getElementById("result").innerText`);
 let open = await evaluate(`document.querySelector(".attention-break").open`);
-check("percent result shows 80 and the non-probability label", text.includes("注意度（目安・確率ではありません）") && text.includes("80%") && text.includes("詐欺である確率・的中率・安全の度合いではありません") && text.includes("詐欺メールの疑いが強いです"), text.slice(0, 240));
-check("breakdown is collapsed", open === false);
-check("version label is visible", text.includes("attention-scale-2026-11-09-a") && text.includes("判定プロトコル版：0.8"));
+const more = await evaluate(`document.querySelector(".attention-expl-more").textContent`);
+check("percent result shows 80 and the short non-probability sentence", text.includes("注意度（目安・確率ではありません）") && text.includes("80%") && text.includes("注意度の数値は、詐欺の確率でも安全の度合いでもありません。") && text.includes("詐欺メールの疑いが強いです") && !text.includes("確からしさの目安"), text.slice(0, 240));
+check("longer explanation stays in the collapsed details", open === false && more.includes("詐欺である確率・的中率・安全の度合いではありません"));
+check("version label is visible", text.includes("attention-scale-2026-11-09-a") && text.includes("判定プロトコル版：0.9"));
 await shot("stage3_percent_desktop.png");
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await shot("stage3_percent_mobile.png");
@@ -100,9 +106,19 @@ await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, devi
 await shot("stage3_dash_mobile.png");
 
 await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
+await go(origin + "/");
+await evaluate(`document.getElementById("from_email").value = ""; document.getElementById("body").value = "ギフトカードの番号を送ってください。"; document.getElementById("check").click();`);
+await evaluate(`new Promise((resolve) => { const t = setInterval(() => { if (document.querySelector("#result.show")) { clearInterval(t); resolve(true); } }, 20); })`);
+text = await evaluate(`document.getElementById("result").innerText`);
+check("missing from stays insufficient and leads with the caution", text.includes("入力が足りませんが、注意すべき特徴があります") && text.includes("情報が足りず判定できません") && text.includes("—"), text.slice(0, 280));
+await shot("stage3_gap_desktop.png");
+await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+await shot("stage3_gap_mobile.png");
+
+await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await go(origin + "/terms.html");
 text = await evaluate(`document.body.innerText`);
-check("terms page is marked as an unreviewed draft", text.includes("弁護士の確認前の下書き") && text.includes("［上限額：弁護士確認後に記載。無償提供時に0円とする実質的全部免責は置かない］") && text.includes("［窓口URL／メールアドレス］") && text.includes("［管轄：弁護士確認。消費者の住所地裁判所を選択できる形等を検討］"));
+check("terms page is marked as an unreviewed draft", text.includes("弁護士の確認前の下書き") && text.includes("未定") && !text.includes("名称候補") && !text.includes("0円とする実質的全部免責"));
 check("terms page does not state a total disclaimer", !text.includes("一切の損害について責任を負いません"));
 await shot("stage3_terms_desktop.png");
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });

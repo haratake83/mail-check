@@ -21,6 +21,14 @@ check("query rejects body and verdict", q.ok === false && q.reason === "forbidde
 const qok = S.buildQueryPayload({ address: "Notice@Example.com" });
 check("query payload is address only", qok.ok && qok.payload.address === "Notice@example.com" && qok.payload.flow === "query" && !("body" in qok.payload) && !("display_name" in qok.payload));
 check("local-part case is kept", S.normalizeAddress("A.B+tag@Example.com").address === "A.B+tag@example.com");
+check("domain only is normalized", S.normalizeAddress("Ａ.B+tag@ＥＸＡＭＰＬＥ.com").address === "Ａ.B+tag@example.com");
+check("metadata label is kept and data scheme is not", S.sanitizeName("metadata: keep") === "metadata: keep" && S.sanitizeName("data:text/plain") === null);
+const sameKey = "ab".repeat(16);
+const once = S.buildSubmitPayload({ address: "a@example.com", consent: true, idempotency_key: sameKey });
+const twice = S.buildSubmitPayload({ address: "a@example.com", consent: true, idempotency_key: sameKey });
+check("idempotency key is reused when the session supplies it", once.ok && once.payload.idempotency_key === sameKey && twice.payload.idempotency_key === sameKey);
+const src = fs.readFileSync(new URL("./stage2-public.js", import.meta.url), "utf8");
+check("submit key is not Math.random", !src.includes("Math.random") && src.includes("getRandomValues"));
 check("submit needs a separate consent", S.buildSubmitPayload({ address: "a@example.com", consent: false }).reason === "consent_required");
 const sub = S.buildSubmitPayload({ address: "a@example.com", display_name: "<b>名</b>", consent: true, otp: "998877" });
 check("submit rejects otp", sub.ok === false && !JSON.stringify(sub).includes("998877"));

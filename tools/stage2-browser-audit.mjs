@@ -82,6 +82,9 @@ await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, dev
 const before = net.length;
 await go(origin + "/");
 check("index loads", (await evaluate(`document.querySelector("#history_panel h2").textContent`)).includes("受付履歴"));
+check("history controls stay hidden", (await evaluate(`document.getElementById("history_panel").hidden`)) === true);
+check("history pending line is shown", (await evaluate(`document.getElementById("history_pending").innerText`)).includes("準備中"));
+check("list link stays hidden", (await evaluate(`document.getElementById("list_link").hidden`)) === true);
 check("name label is the approved wording", (await evaluate(`document.getElementById("dn_label").textContent`)).includes("メールに記載された名前"));
 check("address label is the approved wording", (await evaluate(`document.getElementById("from_label").textContent`)).includes("メールに記載されたアドレス"));
 check("consent starts off", (await evaluate(`document.getElementById("history_consent").checked`)) === false);
@@ -93,15 +96,15 @@ await evaluate(`document.getElementById("body").value = "本文と認証コー�
 const afterType = net.length;
 await evaluate(`document.getElementById("history_query").click()`);
 await evaluate(`new Promise((r) => setTimeout(r, 50))`);
-const queryText = await evaluate(`document.getElementById("history_result").innerText`);
+const queryText = await evaluate(`document.getElementById("history_result").textContent`);
 check("disabled query says unavailable and has no count", queryText.includes("現在履歴を取得できません") && !/\d+件/.test(queryText), queryText);
 check("query did not add a network event", net.length === afterType);
 await evaluate(`document.getElementById("history_submit").click()`);
-const submitText = await evaluate(`document.getElementById("history_submit_result").innerText`);
+const submitText = await evaluate(`document.getElementById("history_submit_result").textContent`);
 check("submit without consent does not send", submitText.includes("同意がないので送信しません") && net.length === afterType, submitText);
 await evaluate(`document.getElementById("history_consent").checked = true; document.getElementById("history_submit").click();`);
 await evaluate(`new Promise((r) => setTimeout(r, 30))`);
-check("submit with consent still does not send when no endpoint exists", net.length === afterType && (await evaluate(`document.getElementById("history_submit_result").innerText`)).includes("送信していません"));
+check("submit with consent still does not send when no endpoint exists", net.length === afterType && (await evaluate(`document.getElementById("history_submit_result").textContent`)).includes("送信していません"));
 check("malicious name did not create an image", (await evaluate(`document.images.length`)) === 0);
 check("typed values stayed in the form", (await evaluate(`document.getElementById("from_email").value`)) === MARK);
 const leaked = net.slice(before).filter((r) => (r.url + r.postData).includes(MARK) || (r.url + r.postData).includes("998877") || r.method === "POST");

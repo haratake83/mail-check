@@ -23,7 +23,7 @@
     B({ id: "smbc_card", label: "三井住友カード", names: ["三井住友カード", "Vpass"], web: ["~vpass.ne.jp"], send: ["contact.vpass.ne.jp", "vpass.ne.jp", "mail.vpass.ne.jp", "smbc-card.com", "prepaid.smbc-card.com", "payment.vpass.ne.jp", "secure.payment.vpass.ne.jp", "contact.smbc-card.com"], pending: ["~smbc-card.com"], anchors: ["vpass"] }),
     B({ id: "japanpost", label: "日本郵便", names: ["日本郵便", "JP POST", "郵便局"], web: ["post.japanpost.jp"], anchors: ["japanpost"] }),
     B({ id: "yucho", label: "ゆうちょ銀行", names: ["ゆうちょダイレクト", "ゆうちょ銀行"], web: ["jp-bank.japanpost.jp"], anchors: ["jp-bank"] }),
-    B({ id: "yamato", label: "ヤマト運輸", names: ["クロネコヤマト", "ヤマト運輸"], web: ["~kuronekoyamato.co.jp"], send: ["kuronekoyamato.co.jp", "ml.kuronekoyamato.co.jp", "ml2.kuronekoyamato.co.jp"], sendExceptions: ["shop.rakuten.co.jp"], e03r: true, e03rScope: "delivery", anchors: ["kuronekoyamato"], a11: ["yamato_sms", "yamato_email_phrases"] }),
+    B({ id: "yamato", label: "ヤマト運輸", names: ["クロネコヤマト", "ヤマト運輸"], web: ["~kuronekoyamato.co.jp"], send: ["kuronekoyamato.co.jp", "ml.kuronekoyamato.co.jp", "ml2.kuronekoyamato.co.jp"], sendExceptions: ["shop.rakuten.co.jp"], e03r: true, e03rScope: "delivery", anchors: ["kuronekoyamato"], a11: ["yamato_email_phrases"] }),
     B({ id: "mufg", label: "三菱UFJ銀行", names: ["三菱UFJ銀行", "三菱UFJダイレクト"], web: ["bk.mufg.jp"], anchors: ["mufg"] }),
     B({ id: "docomo", label: "NTTドコモ", names: ["NTTドコモ", "ドコモ", "docomo", "ahamo"], web: ["~docomo.ne.jp"], anchors: ["docomo"], personalMailDomain: "docomo.ne.jp" }),
     B({ id: "nhk", label: "NHK", names: ["日本放送協会", "NHK受信料", "NHK"], shortAscii: true, web: ["provision-plus.nhk.jp"], pending: ["~nhk.or.jp", "~web.nhk"], anchors: ["nhk"] }),
@@ -54,8 +54,8 @@
     B({ id: "public_agency", label: "公的機関", names: ["総務省", "厚生労働省", "財務省", "警察庁", "デジタル庁", "日本年金機構", "年金事務所", "警察署"], state: "empty", publicAgency: true })
   ];
   g.MH_PROTOCOL = {
-    version: "v0.8",
-    schema_version: "0.8-jp-4in+2opt",
+    version: "v0.9",
+    schema_version: "0.9-jp-email",
     verified_on_jst: "2026-11-06",
     expires_on_jst: "2027-02-04",
     route_enabled: false, // G0/G1b/G3/G4 未達。新規P16/P17のSは内部shadowのみ、表示はM

@@ -9,43 +9,38 @@
 
   var COPY = {
     emailLabel: "メールに記載されたアドレス",
-    smsLabel: "SMSの送信元（電話番号・短い名前など。わからなければ空欄）",
     emailWarn: "届いたメールの送り主のアドレスを入力してください。あなた自身のアドレス（宛先／To）や、パスワード・カード番号は入力しないでください。",
-    smsWarn: "パスワードやカード番号は入力しないでください。電話番号・短い名前・空欄のままで判定できます。",
     emailHint: "例: notice@example.com",
-    smsHint: "メールアドレスの形式でなくても、そのままで判定できます。",
     emailHelp: "メール上部の差出人名の横にある詳細表示（▼など）を開き、『差出人／From』の@を含むアドレス全体を確認してください。アプリにより表示方法が異なります。返信画面や本文のリンクを開く必要はありません。見つからなければ無理に操作しないでください。",
-    smsHelp: "SMSの送信元が分からないときは空欄で判定してください。メールアドレスに直す必要はありません。本文のリンクは開かないでください。",
-    emailNote: "表示名やFromも偽装されるため、本物とは確認できません。",
-    smsNote: "表示名も偽装されることがあります。本物とは確認できません。"
+    emailNote: "表示名やFromも偽装されるため、本物とは確認できません。"
   };
+  var judgmentKey = null;
+  function sessionKey() {
+    if (judgmentKey) return judgmentKey;
+    var bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    judgmentKey = Array.prototype.map.call(bytes, function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+    return judgmentKey;
+  }
 
   function applyChannel() {
-    var sms = radio("channel") === "sms";
-    $("from_label").textContent = sms ? COPY.smsLabel : COPY.emailLabel;
-    $("from_warn").textContent = sms ? COPY.smsWarn : COPY.emailWarn;
-    $("from_hint").textContent = sms ? COPY.smsHint : COPY.emailHint;
-    $("from_help").textContent = sms ? COPY.smsHelp : COPY.emailHelp;
-    $("from_note").textContent = sms ? COPY.smsNote : COPY.emailNote;
-    $("from_email").setAttribute("inputmode", sms ? "text" : "email");
-    var hq = $("history_query"), hs = $("history_submit");
-    if (hq) hq.disabled = sms;
-    if (hs) hs.disabled = sms;
-    if (sms && $("history_query_note")) $("history_query_note").textContent = "この履歴照会はメールに記載されたアドレスだけが対象です。SMSでは送信しません。";
-    if (historySession) { historySession.invalidate(); paintHistory(historySession.view()); }
-    $("dn_hint").textContent = sms ? "SMSに表示されている名前（空欄可）" : "メールアプリに表示されている名前（例: ヤマト運輸）";
-    $("body_label").textContent = sms ? "SMS本文" : "メール本文";
-    $("ctx_q").textContent = sms ? "このSMSに心当たりはありますか？" : "このメールに心当たりはありますか？";
+    $("from_label").textContent = COPY.emailLabel;
+    $("from_warn").textContent = COPY.emailWarn;
+    $("from_hint").textContent = COPY.emailHint;
+    $("from_help").textContent = COPY.emailHelp;
+    $("from_note").textContent = COPY.emailNote;
+    $("from_email").setAttribute("inputmode", "email");
+    $("dn_hint").textContent = "メールアプリに表示されている名前（例: ヤマト運輸）";
+    $("body_label").textContent = "メール本文";
+    $("ctx_q").textContent = "このメールに心当たりはありますか？";
   }
-  document.querySelectorAll('input[name="channel"]').forEach(function (r) { r.addEventListener("change", applyChannel); });
 
   function clearAll() {
     generation += 1;
     ["display_name", "from_email", "body", "visible_link_url"].forEach(function (id) { $(id).value = ""; });
     var unk = document.querySelector('input[name="context_answer"][value="unknown"]');
     if (unk) unk.checked = true;
-    var em = document.querySelector('input[name="channel"][value="email"]');
-    if (em) em.checked = true;
+    judgmentKey = null;
     applyChannel();
     var box = $("result");
     box.textContent = "";
@@ -69,7 +64,7 @@
         body: $("body").value,
         context_answer: radio("context_answer"),
         visible_link_url: $("visible_link_url").value,
-        channel: radio("channel") || "email"
+        channel: "email"
       });
     } catch (e) {
       if (gen !== generation) return;
@@ -77,6 +72,7 @@
       return;
     }
     if (gen !== generation) return;
+    sessionKey();
     render(r);
   });
 
@@ -151,26 +147,23 @@
   }
 
   function renderAttention(r) {
-    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.8" };
+    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.9" };
     var numeric = a.display != null && a.display !== "—" && a.display !== "0" && a.display !== "100";
     var tone = !numeric ? "a-grey" : (a.display === "80" ? "a-red" : "a-yellow");
     var wrap = el("div", "attention " + tone);
     wrap.appendChild(el("p", "attention-label", a.label_ja));
     wrap.appendChild(el("p", "attention-score", numeric ? a.display + "%" : "—"));
     wrap.appendChild(el("p", "attention-expl", numeric
-      ? "注意度（目安）は、入力された文字情報に対するルール判定の警戒の目安です。詐欺である確率・的中率・安全の度合いではありません。実メールで校正した統計でもありません。メールに含まれる認証結果・本当のリンク先・添付ファイルの中身は評価していません。下の判定区分とあわせて、公式アプリやブックマークから直接確認してください。"
-      : "このケースでは注意度の数値は表示しません。数値が無いことは安全を意味しません。下の判定区分の案内に従ってください。"));
-    var strong = 0, medium = 0, weak = 0;
-    (r.evidence || []).forEach(function (e) {
-      if (e.strength === "strong") strong++;
-      else if (e.strength === "medium") medium++;
-      else if (e.strength === "weak") weak++;
-    });
+      ? "注意度の数値は、詐欺の確率でも安全の度合いでもありません。"
+      : "数値が無いことは安全を意味しません。"));
     var det = el("details", "attention-break");
     det.appendChild(el("summary", null, "根拠の目安を見る"));
-    det.appendChild(el("p", null, "根拠の目安：強い特徴 " + strong + "／中程度 " + medium + "／弱い特徴 " + weak + "（同じ根拠はまとめ、最終区分は最大優先です。件数を足し上げた確率ではありません）"));
+    det.appendChild(el("p", "attention-expl-more", numeric
+      ? "注意度（目安）は、入力された文字情報に対するルール判定の警戒の目安です。詐欺である確率・的中率・安全の度合いではありません。実メールで校正した統計でもありません。メールに含まれる認証結果・本当のリンク先・添付ファイルの中身は評価していません。下の判定区分とあわせて、公式アプリやブックマークから直接確認してください。"
+      : "このケースでは注意度の数値は表示しません。下の判定区分の案内に従ってください。"));
+    det.appendChild(el("p", null, a.breakdown_ja || "根拠の目安：強い特徴 0／中程度 0／弱い特徴 0（同じ根拠はまとめ、最終区分は最大優先です。件数を足し上げた確率ではありません）"));
     wrap.appendChild(det);
-    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.8") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
+    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.9") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
     return wrap;
   }
 
@@ -188,6 +181,12 @@
       lead.appendChild(el("p", null, d.lead.body));
       lead.appendChild(el("p", null, d.lead.note));
       box.appendChild(lead);
+    }
+    if (d.input_gap_lead) {
+      var gap = el("div", "lead-alert");
+      gap.appendChild(el("h2", null, d.input_gap_lead.headline));
+      gap.appendChild(el("p", null, d.input_gap_lead.body));
+      box.appendChild(gap);
     }
     box.appendChild(renderAttention(r));
     box.appendChild(el("h2", "verdict-head", d.headline));
@@ -218,7 +217,7 @@
     box.appendChild(renderUrls(r));
     box.appendChild(renderPurpose(r));
     var meta = el("p", "meta-row");
-    meta.appendChild(el("span", null, "判定の確からしさの目安: 低（確率ではありません）"));
+    meta.appendChild(el("span", null, "この判定方式の精度は未測定です"));
     box.appendChild(meta);
     var near = el("p", "terms-near");
     near.appendChild(document.createTextNode("本結果は入力された文字情報に基づく参考情報であり、メールの真偽や安全性を保証するものではありません。注意度の数値は確率ではありません。詳しくは"));
@@ -236,7 +235,7 @@
     if (!box) return;
     box.textContent = "";
     if (!view || view.status === "not_queried") {
-      if (radio("channel") !== "sms" && $("history_query_note")) $("history_query_note").textContent = "まだ照会していません。この画面の設定では履歴の照会先がなく、入力したアドレスは送信しません。";
+      if ($("history_query_note")) $("history_query_note").textContent = "まだ照会していません。この画面には履歴の照会先がありません。";
       return;
     }
     if (view.status === "checking") { box.appendChild(el("p", null, "履歴を確認中です")); return; }
@@ -268,7 +267,6 @@
     historySession = window.MH_STAGE2.createSession();
     window.MH_STAGE2.adapter = window.MH_STAGE2.createDisabledAdapter();
     $("history_query").addEventListener("click", function () {
-      if (radio("channel") === "sms") return;
       var built = window.MH_STAGE2.buildQueryPayload({ address: $("from_email").value });
       var box = $("history_result");
       if (!built.ok) {
@@ -291,8 +289,7 @@
         box.appendChild(el("p", null, "統計への受付登録には、別の同意が必要です。同意がないので送信しません。"));
         return;
       }
-      if (radio("channel") === "sms") return;
-      var built = window.MH_STAGE2.buildSubmitPayload({ address: $("from_email").value, display_name: $("display_name").value, consent: true });
+      var built = window.MH_STAGE2.buildSubmitPayload({ address: $("from_email").value, display_name: $("display_name").value, consent: true, idempotency_key: sessionKey() });
       if (!built.ok) {
         box.appendChild(el("p", null, "メールに記載されたアドレスの形式を確認してください。送信しません。"));
         return;
@@ -314,5 +311,14 @@
       });
     });
   }
+  function applyFlags() {
+    var f = window.MH_FLAGS || {};
+    if (f.FEATURE_HISTORY_PANEL && $("history_panel")) {
+      $("history_panel").hidden = false;
+      if ($("history_pending")) $("history_pending").hidden = true;
+    }
+    if (f.FEATURE_LIST_PUBLIC && $("list_link")) $("list_link").hidden = false;
+  }
   applyChannel();
+  applyFlags();
 })();

@@ -13,7 +13,7 @@
     try { return new URL("http://" + h + "/").hostname.replace(/\.$/, ""); } catch (e2) { return h; }
   }
   function normalizeAddress(raw) {
-    var s = nfkc(raw).trim();
+    var s = String(raw || "").trim();
     var m = s.match(/^([^@\s<>]+)@([^@\s<>]+)$/);
     if (!m) return { ok: false, reason: "unusable" };
     var local = m[1];
@@ -21,10 +21,11 @@
     if (!domain || domain.indexOf(".") < 0 || /[/?#]/.test(local)) return { ok: false, reason: "unusable" };
     return { ok: true, local: local, domain: domain, address: local + "@" + domain };
   }
+  /* 画面側の名前フィルタは公開の安全保証ではない。掲載してよいかの確認はサーバ側の審査であり、この関数が漏えいを防ぐとは限らない。 */
   function sanitizeName(raw) {
     var t = nfkc(raw).replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").trim();
     if (!t) return null;
-    if (/[<>]|https?:|javascript:|data:/i.test(t)) return null;
+    if (/[<>]|https?:|javascript:|\bdata:/i.test(t)) return null;
     if (/\d{4,}/.test(t)) return null;
     if (t.length > 80) t = t.slice(0, 80);
     return t;
@@ -61,11 +62,18 @@
       flow: "submit",
       consent_purpose: "stats_submit",
       address: n.address,
-      idempotency_key: Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2)
+      idempotency_key: fields.idempotency_key || freshKey()
     };
     var name = sanitizeName(fields.display_name);
     if (name) payload.display_name = name;
     return { ok: true, payload: payload };
+  }
+  function freshKey() {
+    var bytes = new Uint8Array(16);
+    if (g.crypto && g.crypto.getRandomValues) g.crypto.getRandomValues(bytes);
+    var out = "";
+    for (var i = 0; i < bytes.length; i++) out += ("0" + bytes[i].toString(16)).slice(-2);
+    return out;
   }
   function unavailable() {
     return { schema_version: SCHEMA, status: "unavailable", productionReady: false, privacyVerified: false, acceptance_increment: 0 };

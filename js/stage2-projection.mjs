@@ -4,7 +4,7 @@
 function cleanLabel(raw) {
   if (typeof raw !== "string") return null;
   var t = raw.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").trim();
-  if (!t || /[<>]|https?:|javascript:|data:/i.test(t) || /\d{4,}/.test(t)) return null;
+  if (!t || /[<>]|https?:|javascript:|\bdata:/i.test(t) || /\d{4,}/.test(t)) return null;
   return t.length > 80 ? t.slice(0, 80) : t;
 }
 

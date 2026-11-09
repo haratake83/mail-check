@@ -253,7 +253,7 @@ check("url section says it did not visit", ui.includes("リンク先には当サ
 const code = stripComments([judgeSrc, ui, html, css, fs.readFileSync(new URL("./protocol-data.js", import.meta.url), "utf8")].join("\n"));
 const banned = ["fetch(", "XMLHttpRequest", "sendBeacon", "localStorage", "sessionStorage", "indexedDB", "WebSocket", "gtag(", "googletagmanager"];
 banned.forEach((w) => check("production code has no " + w, !code.includes(w)));
-check("sms label is available to the ui", ui.includes("SMSの送信元（電話番号・短い名前など。わからなければ空欄）"));
+check("email only, no sms sender choice", !html.includes('value="sms"') && !ui.includes("SMSの送信元") && html.includes("メールアドレスのメールだけを判定します"));
 
 console.log("\n" + pass + " passed, " + fail + " failed.");
 console.log("PREEXISTING_UNFIXED (locked, not claimed as fixed):");

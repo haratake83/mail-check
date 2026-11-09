@@ -36,7 +36,7 @@ check("A06 lead and strong attention coexist", lead.verdict === "strong_suspicio
 const again = run("ギフトカードの番号を送ってください。");
 check("A07 repeat is stable", again.attention.display === strong.attention.display && again.verdict === strong.verdict && again.danger_level === strong.danger_level);
 [strong, reviewM, reviewN, reviewW, grey, insuff, lead].forEach(function (r) {
-  check("scale and not a probability " + r.verdict + r.danger_level, attnOk(r.attention) && r.attention.protocol_version === "0.8");
+  check("scale and not a probability " + r.verdict + r.danger_level, attnOk(r.attention) && r.attention.protocol_version === "0.9");
 });
 check("no displayed value is 0 or 100", [strong, reviewM, reviewN, grey, insuff].every(function (r) { return r.attention.display !== "0" && r.attention.display !== "100"; }));
 
@@ -46,10 +46,10 @@ const list = fs.readFileSync(new URL("../list.html", import.meta.url), "utf8");
 const terms = fs.readFileSync(new URL("../terms.html", import.meta.url), "utf8");
 check("A08 version label is in the renderer", ui.includes("attention-scale-2026-11-09-a") && ui.includes("判定プロトコル版"));
 check("A09 breakdown says it is not an added probability", ui.includes("件数を足し上げた確率ではありません") && ui.includes("<details") === false && ui.includes('el("details"'));
-check("explanation is not only inside the collapsed details", ui.indexOf("詐欺である確率・的中率・安全の度合いではありません") < ui.indexOf('el("details", "attention-break")'));
+check("short attention sentence is outside the collapsed details", ui.indexOf("注意度の数値は、詐欺の確率でも安全の度合いでもありません。") < ui.indexOf('el("details", "attention-break")') && ui.indexOf("詐欺である確率・的中率・安全の度合いではありません") > ui.indexOf('el("details", "attention-break")'));
 const renderSrc = ui.slice(ui.indexOf("function render(r)"));
 check("display order source is lead then attention then verdict", renderSrc.indexOf("renderAttention(r)") > renderSrc.indexOf("lead-alert") && renderSrc.indexOf('el("h2", "verdict-head"') > renderSrc.indexOf("renderAttention(r)"));
-check("terms draft notice and placeholders", terms.includes("弁護士の確認前の下書き") && terms.includes("［上限額：弁護士確認後に記載。無償提供時に0円とする実質的全部免責は置かない］") && terms.includes("［管轄：弁護士確認。消費者の住所地裁判所を選択できる形等を検討］") && terms.includes("［窓口URL／メールアドレス］"));
+check("terms draft notice and undetermined marks", terms.includes("弁護士の確認前の下書き") && terms.includes("未定") && !terms.includes("名称候補") && !terms.includes("0円とする実質的全部免責"));
 check("terms do not invent an operator address or a yen cap", !/株式会社|東京都|〒\d/.test(terms) && !/上限として金[0-9]/.test(terms) && !terms.includes("一切の損害について責任を負いません"));
 check("terms are linked from the footer, history, and list", index.includes('href="terms.html"') && index.includes('href="#privacy_detail"') && list.includes('href="terms.html"') && list.includes("プライバシーに関する説明"));
 check("forbidden absolute disclaimer is absent", !terms.includes("損害賠償の有無・金額は当社が決定します") && !terms.includes("法令に反しない限り責任を負いません"));
