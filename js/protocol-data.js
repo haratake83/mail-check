@@ -54,7 +54,7 @@
     B({ id: "public_agency", label: "公的機関", names: ["総務省", "厚生労働省", "財務省", "警察庁", "デジタル庁", "日本年金機構", "年金事務所", "警察署"], state: "empty", publicAgency: true })
   ];
   g.MH_PROTOCOL = {
-    version: "v0.9.1",
+    version: "v0.9.2",
     schema_version: "0.9-jp-email",
     verified_on_jst: "2026-11-06",
     expires_on_jst: "2027-02-04",

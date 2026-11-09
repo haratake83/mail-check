@@ -53,12 +53,14 @@
     </div>
     <input id="visible_link_url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000">
 
+    <p class="terms-agree" id="terms_agree">判定すると、<a href="terms.html">利用規約</a>に同意したものとみなします。</p>
     <button type="submit" id="check">判定する</button>
     <button type="button" id="clear">入力を消す</button>
     <div class="privacy-detail" id="privacy_detail">
-      <p>入力した本文やURLは、お使いの端末（ブラウザ）の中だけで判定します。当サイトに送られたり、保存されたりすることはありません。</p>
+      <p>入力した本文やURLは、お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。</p>
       <p>ほかのサイトと同じように、ページを開いた時刻やブラウザの種類などの一般的なアクセス記録は配信会社に残りますが、入力した内容は含まれません。</p>
       <p>画面の入力は「入力を消す」ボタンですぐ消せます。共用の端末では、使い終わったらページを閉じてください。</p>
+      <p id="privacy_plan">判定に入力したメールアドレスと名前は、今後始める統計機能で利用する予定です（現在は集めていません）。本文やURLは統計に使いません。</p>
     </div>
     <p id="history_pending">受付履歴の機能は準備中です。</p>
     <section id="history_panel" hidden>
@@ -80,7 +82,7 @@
   <footer>
     <p>これは参考情報です。最終的な判断はご自身でお願いします。</p>
     <p>本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。</p>
-    <p>判定プロトコル v0.9.1（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p>判定プロトコル v0.9.2（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a href="terms.html">利用規約（下書き）</a> ／ <a href="#privacy_detail">プライバシーに関する説明</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
   </footer>

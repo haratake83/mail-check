@@ -36,7 +36,7 @@ check("A06 lead and strong attention coexist", lead.verdict === "strong_suspicio
 const again = run("ギフトカードの番号を送ってください。");
 check("A07 repeat is stable", again.attention.display === strong.attention.display && again.verdict === strong.verdict && again.danger_level === strong.danger_level);
 [strong, reviewM, reviewN, reviewW, grey, insuff, lead].forEach(function (r) {
-  check("scale and not a probability " + r.verdict + r.danger_level, attnOk(r.attention) && r.attention.protocol_version === "0.9.1");
+  check("scale and not a probability " + r.verdict + r.danger_level, attnOk(r.attention) && r.attention.protocol_version === "0.9.2");
 });
 check("no displayed value is 0 or 100", [strong, reviewM, reviewN, grey, insuff].every(function (r) { return r.attention.display !== "0" && r.attention.display !== "100"; }));
 
@@ -50,6 +50,7 @@ check("short attention sentence is outside the collapsed details", ui.indexOf("�
 const renderSrc = ui.slice(ui.indexOf("function render(r)"));
 check("display order source is lead then attention then verdict", renderSrc.indexOf("renderAttention(r)") > renderSrc.indexOf("lead-alert") && renderSrc.indexOf('el("h2", "verdict-head"') > renderSrc.indexOf("renderAttention(r)"));
 check("terms draft notice and undetermined marks", terms.includes("弁護士の確認前の下書き") && terms.includes("未定") && !terms.includes("名称候補") && !terms.includes("0円とする実質的全部免責"));
+check("terms mark address statistics as planned and not started", terms.includes("判定に入力したメールアドレスと名前は、今後始める統計機能で利用する予定です（現在は集めていません）。本文やURLは統計に使いません。") && !terms.includes("サーバへ送られることがあります"));
 check("terms do not invent an operator address or a yen cap", !/株式会社|東京都|〒\d/.test(terms) && !/上限として金[0-9]/.test(terms) && !terms.includes("一切の損害について責任を負いません"));
 check("terms are linked from the footer, history, and list", index.includes('href="terms.html"') && index.includes('href="#privacy_detail"') && list.includes('href="terms.html"') && list.includes("プライバシーに関する説明"));
 check("forbidden absolute disclaimer is absent", !terms.includes("損害賠償の有無・金額は当社が決定します") && !terms.includes("法令に反しない限り責任を負いません"));
