@@ -82,6 +82,17 @@ node tools/stage2-browser-audit.mjs --out /tmp/mail-check-stage2
 
 不足している運用は、受付の保存場所、掲載権限の審査と即時停止、削除とバックアップ、レート制限、配信ログと統計の分離です。外部の収集サービスは選んでいません。
 
+## 第3段階（注意度と利用規約下書き）
+
+注意度は、既存の4判定から表示だけを決める。強い疑いは80%、要確認で危険度Mは60%、要確認でWまたはNは45%、判断できない場合と情報不足は「—」である。0%と100%は出さない。確率ではない。定義版は `attention-scale-2026-11-09-a`。
+
+利用規約は `terms.html` の下書きである。弁護士の確認前であり、運営者名、連絡先、責任の上限額、管轄は未確定のまま残している。
+
+```bash
+node js/stage3.test.mjs
+node tools/stage3-browser-audit.mjs --out /tmp/mail-check-stage3
+```
+
 ## 既知の制限（homepage担当向け）
 - SPF/DKIM、真のリンク先（HTML href）、添付の中身、Reply-To は検証しません。From の一致は認証ではありません。
 - スコア用の登録ドメインは Public Suffix List の簡易近似のままです（第1段階の説明では運営者判定に使っていません）。IDNA は URL API 依存です。

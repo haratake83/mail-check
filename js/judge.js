@@ -963,7 +963,22 @@
     res.unmatched_ctas = stage1.unmatched;
     res.statistics = null;
     applyPurposeLead(res);
+    res.attention = attentionFrom(res);
     return res;
+  }
+  function attentionFrom(r) {
+    var base = {
+      label_ja: "注意度（目安・確率ではありません）",
+      unit: "percent_guidance",
+      is_probability: false,
+      scale_version: "attention-scale-2026-11-09-a",
+      protocol_version: "0.8"
+    };
+    if (r.verdict === "strong_suspicion") return Object.assign(base, { display: "80", band: [75, 85], hidden_reason: null });
+    if (r.verdict === "needs_review" && r.danger_level === "M") return Object.assign(base, { display: "60", band: [55, 65], hidden_reason: null });
+    if (r.verdict === "needs_review") return Object.assign(base, { display: "45", band: [40, 50], hidden_reason: null });
+    if (r.verdict === "no_clear_signal") return Object.assign(base, { display: "—", band: null, hidden_reason: "no_clear_signal" });
+    return Object.assign(base, { display: "—", band: null, hidden_reason: "insufficient" });
   }
   function applyPurposeLead(res) {
     var exec = (res.purpose_assessment || []).filter(function (p) { return p.tag === "malware_or_execution"; })[0];

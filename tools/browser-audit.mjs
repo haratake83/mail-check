@@ -214,7 +214,7 @@ const clickView = await resultView();
 check("clickfix lead is before the grey verdict", clickView.lead.includes("先に読んでください") && clickView.text.indexOf("先に読んでください") < clickView.text.indexOf("判断できませんでした"), clickView.lead);
 check("clickfix does not say no features were found", !clickView.text.includes("検出できた特徴はありませんでした"));
 check("clickfix verdict class stays grey", clickView.className.includes("v-grey"));
-check("clickfix result has no anchors", clickView.anchors.length === 0);
+check("clickfix result has no anchors to pasted urls", clickView.anchors.every(function (h) { return h === "terms.html"; }));
 await shot("stage1_clickfix_lead.png");
 
 await evaluate(`document.getElementById("clear").click()`);
