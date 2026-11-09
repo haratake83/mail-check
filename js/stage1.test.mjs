@@ -239,7 +239,7 @@ const css = fs.readFileSync(new URL("../css/app.css", import.meta.url), "utf8");
 function stripComments(s) {
   return s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
-check("from label and warning are present", html.includes("差出人（From）のメールアドレス") && html.includes("あなた自身のアドレス（宛先／To）") && html.includes("notice@example.com"));
+check("from label and warning are present", html.includes("メールに記載されたアドレス") && html.includes("あなた自身のアドレス（宛先／To）") && html.includes("notice@example.com"));
 check("from help is present", html.includes("『差出人／From』") && html.includes("見つからなければ無理に操作しないでください。"));
 check("from can be spoofed is stated", html.includes("表示名やFromも偽装されるため、本物とは確認できません。"));
 check("clear button and bounded privacy sentence", html.includes("入力を消す") && html.includes("完全消去を保証するものではありません") && html.includes("本番やプレビューの配信環境は未監査です") && html.includes("IPアドレス") && html.includes("戻る"));

@@ -25,11 +25,11 @@
       </div>
     </fieldset>
 
-    <label class="field" for="display_name">送信元名 <span class="opt">（任意）</span></label>
+    <label class="field" for="display_name" id="dn_label">メールに記載された名前 <span class="opt">（任意）</span></label>
     <span class="hint" id="dn_hint">メールアプリに表示されている名前（例: ヤマト運輸）</span>
     <input id="display_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200">
 
-    <label class="field" for="from_email" id="from_label">差出人（From）のメールアドレス</label>
+    <label class="field" for="from_email" id="from_label">メールに記載されたアドレス</label>
     <p class="from-warn" id="from_warn">届いたメールの送り主のアドレスを入力してください。あなた自身のアドレス（宛先／To）や、パスワード・カード番号は入力しないでください。</p>
     <span class="hint" id="from_hint">例: notice@example.com</span>
     <p class="from-help" id="from_help">メール上部の差出人名の横にある詳細表示（▼など）を開き、『差出人／From』の@を含むアドレス全体を確認してください。アプリにより表示方法が異なります。返信画面や本文のリンクを開く必要はありません。見つからなければ無理に操作しないでください。</p>
@@ -59,6 +59,16 @@
 
     <button type="submit" id="check">判定する</button>
     <button type="button" id="clear">入力を消す</button>
+    <section id="history_panel">
+      <h2>このアドレスの受付履歴</h2>
+      <p id="history_query_note">まだ照会していません。この画面の設定では履歴の照会先がなく、入力したアドレスは送信しません。</p>
+      <button type="button" id="history_query">このアドレスの受付履歴を見る</button>
+      <div id="history_result"></div>
+      <label class="context-option" for="history_consent"><input type="checkbox" id="history_consent"> 統計への受付登録に同意する（初期はオフ）</label>
+      <p class="hint" id="history_consent_note">同意は、メールに記載された名前とアドレスを統計対象の判定受付として送るための別操作です。本文とURLは送りません。入力した人の同意は、送信元本人の同意ではありません。現在この画面には送信先がありません。</p>
+      <button type="button" id="history_submit">統計対象として送る</button>
+      <p id="history_submit_result"></p>
+    </section>
     <p class="privacy-detail" id="privacy_detail">この版の画面は、入力した本文やURLを送り出す処理を含みません。確認できるのは、このリポジトリのコードと、同梱の手順で行うローカルブラウザ監査の範囲です。本番やプレビューの配信環境は未監査です。ページを開くときの接続記録（IPアドレス、ブラウザの種類、時刻など）は配信事業者に残ります。その記録は、入力を送っていないこととは別です。「入力を消す」で画面の入力と解析結果を消せます。ブラウザの戻る、再読込、自動入力、元に戻す操作で内容が残ることがあります。端末のメモリー等からの完全消去を保証するものではありません。</p>
     <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。</p>
   </form>
@@ -69,10 +79,12 @@
     <p>これは参考情報です。最終的な判断はご自身でお願いします。</p>
     <p>本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。</p>
     <p>判定プロトコル v0.8（スキーマ 0.8-jp-4in+2opt）／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p><a href="list.html">判定に使われたアドレス一覧</a></p>
   </footer>
 </main>
 <script src="js/protocol-data.js"></script>
 <script src="js/judge.js"></script>
+<script src="js/stage2-public.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>

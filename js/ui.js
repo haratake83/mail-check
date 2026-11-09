@@ -8,7 +8,7 @@
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
   var COPY = {
-    emailLabel: "差出人（From）のメールアドレス",
+    emailLabel: "メールに記載されたアドレス",
     smsLabel: "SMSの送信元（電話番号・短い名前など。わからなければ空欄）",
     emailWarn: "届いたメールの送り主のアドレスを入力してください。あなた自身のアドレス（宛先／To）や、パスワード・カード番号は入力しないでください。",
     smsWarn: "パスワードやカード番号は入力しないでください。電話番号・短い名前・空欄のままで判定できます。",
@@ -28,6 +28,11 @@
     $("from_help").textContent = sms ? COPY.smsHelp : COPY.emailHelp;
     $("from_note").textContent = sms ? COPY.smsNote : COPY.emailNote;
     $("from_email").setAttribute("inputmode", sms ? "text" : "email");
+    var hq = $("history_query"), hs = $("history_submit");
+    if (hq) hq.disabled = sms;
+    if (hs) hs.disabled = sms;
+    if (sms && $("history_query_note")) $("history_query_note").textContent = "この履歴照会はメールに記載されたアドレスだけが対象です。SMSでは送信しません。";
+    if (historySession) { historySession.invalidate(); paintHistory(historySession.view()); }
     $("dn_hint").textContent = sms ? "SMSに表示されている名前（空欄可）" : "メールアプリに表示されている名前（例: ヤマト運輸）";
     $("body_label").textContent = sms ? "SMS本文" : "メール本文";
     $("ctx_q").textContent = sms ? "このSMSに心当たりはありますか？" : "このメールに心当たりはありますか？";
@@ -45,6 +50,11 @@
     var box = $("result");
     box.textContent = "";
     box.className = "";
+    var consent = $("history_consent");
+    if (consent) consent.checked = false;
+    var sub = $("history_submit_result");
+    if (sub) sub.textContent = "";
+    if (historySession) { historySession.invalidate(); paintHistory(historySession.view()); }
   }
   $("clear").addEventListener("click", clearAll);
 
@@ -187,6 +197,90 @@
     box.appendChild(meta);
     box.appendChild(el("small", "disclaimer", r.disclaimer_ja + " これは参考情報です。最終的な判断はご自身でお願いします。"));
     box.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  var historySession = null;
+  function paintHistory(view) {
+    var box = $("history_result");
+    if (!box) return;
+    box.textContent = "";
+    if (!view || view.status === "not_queried") {
+      if (radio("channel") !== "sms" && $("history_query_note")) $("history_query_note").textContent = "まだ照会していません。この画面の設定では履歴の照会先がなく、入力したアドレスは送信しません。";
+      return;
+    }
+    if (view.status === "checking") { box.appendChild(el("p", null, "履歴を確認中です")); return; }
+    if (view.status === "undisclosed") { box.appendChild(el("p", null, "表示できる履歴はありません（0件・少数等を含みます）。")); return; }
+    if (view.status === "stale") {
+      box.appendChild(el("p", null, "集計更新が遅れています。"));
+      if (view.as_of_jst) box.appendChild(el("p", null, "基準日時（JST）: " + view.as_of_jst));
+      return;
+    }
+    if (view.status === "available" && view.measurement === "synthetic-only" && view.productionReady === false && view.privacyVerified === false) {
+      box.appendChild(el("p", "history-banner", "これは合成データの表示です。実績ではありません。"));
+      var windowed = view.period && view.period.kind === "window";
+      box.appendChild(el("p", null, (windowed ? "期間の概数（累計ではありません）" : "本サービスの有効判定受付概数") + ": " + (view.count_band || "")));
+      if (view.period && view.period.label) box.appendChild(el("p", null, view.period.label));
+      if (view.period && view.period.start_date) box.appendChild(el("p", null, "開始日: " + view.period.start_date));
+      if (view.period && view.period.as_of_jst) box.appendChild(el("p", null, "基準日時（JST）: " + view.period.as_of_jst));
+      if (!view.names || !view.names.length) box.appendChild(el("p", null, "表示できる名前はありません。"));
+      else {
+        var ul = el("ul");
+        view.names.forEach(function (n) { ul.appendChild(el("li", null, n.text)); });
+        box.appendChild(ul);
+      }
+      box.appendChild(el("p", null, "投稿者が入力した自称の名前です。本人・所有者・真正性を確認したものではありません。送信元は偽装できます。"));
+      return;
+    }
+    box.appendChild(el("p", null, "現在履歴を取得できません。"));
+  }
+  if (window.MH_STAGE2) {
+    historySession = window.MH_STAGE2.createSession();
+    window.MH_STAGE2.adapter = window.MH_STAGE2.createDisabledAdapter();
+    $("history_query").addEventListener("click", function () {
+      if (radio("channel") === "sms") return;
+      var built = window.MH_STAGE2.buildQueryPayload({ address: $("from_email").value });
+      var box = $("history_result");
+      if (!built.ok) {
+        box.textContent = "";
+        box.appendChild(el("p", null, "メールに記載されたアドレスの形式を確認してください。"));
+        return;
+      }
+      var gen = historySession.begin();
+      paintHistory(historySession.view());
+      window.MH_STAGE2.adapter.query(built.payload).then(function (res) {
+        var applied = historySession.apply(gen, res);
+        if (!applied.applied) return;
+        paintHistory(applied.view);
+      });
+    });
+    $("history_submit").addEventListener("click", function () {
+      var box = $("history_submit_result");
+      box.textContent = "";
+      if (!$("history_consent").checked) {
+        box.appendChild(el("p", null, "統計への受付登録には、別の同意が必要です。同意がないので送信しません。"));
+        return;
+      }
+      if (radio("channel") === "sms") return;
+      var built = window.MH_STAGE2.buildSubmitPayload({ address: $("from_email").value, display_name: $("display_name").value, consent: true });
+      if (!built.ok) {
+        box.appendChild(el("p", null, "メールに記載されたアドレスの形式を確認してください。送信しません。"));
+        return;
+      }
+      var gen = historySession.generation();
+      window.MH_STAGE2.adapter.submit(built.payload).then(function (res) {
+        if (gen !== historySession.generation()) return;
+        box.textContent = "";
+        box.appendChild(el("p", null, "現在、統計対象としての送信先はありません。送信していません。"));
+      });
+    });
+    ["from_email", "display_name"].forEach(function (id) {
+      $(id).addEventListener("input", function () {
+        if (!historySession) return;
+        historySession.invalidate();
+        paintHistory(historySession.view());
+        var sub = $("history_submit_result");
+        if (sub) sub.textContent = "";
+      });
+    });
   }
   applyChannel();
 })();
