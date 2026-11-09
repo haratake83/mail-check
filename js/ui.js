@@ -147,7 +147,7 @@
   }
 
   function renderAttention(r) {
-    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.9.1" };
+    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.9.2" };
     var numeric = a.display != null && a.display !== "—" && a.display !== "0" && a.display !== "100";
     var tone = !numeric ? "a-grey" : (a.display === "80" ? "a-red" : "a-yellow");
     var wrap = el("div", "attention " + tone);
@@ -163,7 +163,7 @@
       : "このケースでは注意度の数値は表示しません。下の判定区分の案内に従ってください。"));
     det.appendChild(el("p", null, a.breakdown_ja || "根拠の目安：強い特徴 0／中程度 0／弱い特徴 0（同じ根拠はまとめ、最終区分は最大優先です。件数を足し上げた確率ではありません）"));
     wrap.appendChild(det);
-    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.9.1") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
+    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.9.2") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
     return wrap;
   }
 
