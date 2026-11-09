@@ -242,8 +242,9 @@ function stripComments(s) {
 check("from label and warning are present", html.includes("メールに記載されたアドレス") && html.includes("あなた自身のアドレス（宛先／To）") && html.includes("notice@example.com"));
 check("from help is present", html.includes("『差出人／From』") && html.includes("見つからなければ無理に操作しないでください。"));
 check("from can be spoofed is stated", html.includes("表示名やFromも偽装されるため、本物とは確認できません。"));
-check("clear button and bounded privacy sentence", html.includes("入力を消す") && html.includes("完全消去を保証するものではありません") && html.includes("本番やプレビューの配信環境は未監査です") && html.includes("IPアドレス") && html.includes("戻る"));
-check("page does not claim production non-transmission", !html.includes("当サイトのサーバーや外部サービスには送信しません") && !html.includes("その通信に、入力した本文やURLは含めません"));
+check("plain privacy wording", html.includes("お使いの端末（ブラウザ）の中だけで判定します。当サイトに送られたり、保存されたりすることはありません。") && html.includes("入力した内容は含まれません。") && html.includes("画面の入力は「入力を消す」ボタンですぐ消せます。") && html.includes("ページを閉じてください。"));
+check("body note sits under the paste hint", html.indexOf("本文をそのまま貼り付けてください。") < html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") && html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") < html.indexOf('id="body"'));
+check("old privacy jargon is gone", !html.includes("送り出す処理を含みません") && !html.includes("完全消去を保証するものではありません") && !html.includes("未監査です") && !html.includes("完全削除"));
 check("stats unavailable sentence", html.includes("全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。"));
 check("stats options A/B/C are not implemented in the page", !html.includes("この端末のみ") && !html.includes("この端末での判定回数") && !ui.includes("この端末での判定回数"));
 check("page does not claim complete deletion", !html.includes("完全削除") && !html.includes("名前/アドレスだけ") && !html.includes("匿名化済み"));
