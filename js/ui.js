@@ -270,6 +270,7 @@
         box.appendChild(ul);
       }
       box.appendChild(el("p", null, "投稿者が入力した自称の名前です。本人・所有者・真正性を確認したものではありません。送信元は偽装できます。"));
+      box.appendChild(el("p", "history-record-subject", "件名: " + (view.subject_display || "（件名なし）")));
       return;
     }
     box.appendChild(el("p", null, "現在履歴を取得できません。"));

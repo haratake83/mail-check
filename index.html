@@ -22,6 +22,7 @@
     <input id="display_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200">
 
     <label class="field" for="subject" id="subject_label">メールの件名 <span class="opt">（任意）</span></label>
+    <p class="hint" id="subject_warn">件名に、お名前・電話番号・住所・メールアドレス・口座番号・会員番号・認証コードなど、個人を特定できる情報が含まれる場合は、その部分を入力しないでください（「○○」などに置き換えてください）。</p>
     <input id="subject" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="300">
 
     <label class="field" for="from_email" id="from_label">メールに記載されたアドレス</label>
@@ -56,7 +57,7 @@
       <p>入力した本文やURLは、お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。</p>
       <p>ほかのサイトと同じように、ページを開いた時刻やブラウザの種類などの一般的なアクセス記録は配信会社に残りますが、入力した内容は含まれません。</p>
       <p>画面の入力は「入力を消す」ボタンですぐ消せます。共用の端末では、使い終わったらページを閉じてください。</p>
-      <p id="privacy_plan">判定に入力する情報は、メールに記載された名前、件名、メールアドレス、本文です。メールアドレス、名前、件名は現在どこにも集めていません。今後始める統計機能で利用する予定なのは、メールアドレスと名前です。件名、本文、URLは統計に使いません。</p>
+      <p id="privacy_plan">判定に入力する情報は、メールに記載された名前、件名、メールアドレス、本文です。メールアドレス、名前、件名は現在どこにも集めていません。今後始める統計機能で利用する予定なのは、メールアドレスと名前です。件名は、判定結果と履歴、公開を始めたあとの一覧に表示されることがあります。本文とURLは統計に使いません。</p>
     </div>
     <p id="history_pending">受付履歴の機能は準備中です。</p>
     <section id="history_panel" hidden>
@@ -72,7 +73,7 @@
       <p id="history_submit_result"></p>
       <p><a href="terms.html">利用規約（下書き）</a></p>
     </section>
-    <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。件名も集めていません。</p>
+    <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。件名も集めていません。件名は判定結果と、この端末の履歴表示に出ます。一覧を公開するときは、そこにも出ることがあります。</p>
   </form>
 
   <section id="result" aria-live="polite"></section>

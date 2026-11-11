@@ -1,6 +1,13 @@
 /* 一覧の公開projection。テスト専用。HTMLからは読み込まない。
  * 実サーバでも本番許可でもない。syntheticOnly でない呼び出しは unavailable。 */
 
+function subjectText(raw) {
+  var t = String(raw == null ? "" : raw).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").replace(/\s+/g, " ").trim();
+  if (!t) return "（件名なし）";
+  if (t.length > 80) return t.slice(0, 80) + "…";
+  return t;
+}
+
 function cleanLabel(raw) {
   if (typeof raw !== "string") return null;
   var t = raw.replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, "").trim();
@@ -41,8 +48,8 @@ export function projectReadableList(entries, policy) {
       count_band: band.label,
       bandRank: band.rank,
       tieKey: typeof e.tieKey === "string" ? e.tieKey : "",
-      subject: null,
-      subject_visibility: "withheld"
+      subject: subjectText(e.subject),
+      subject_visibility: "shown"
     });
   });
   rows.sort(function (a, b) {
@@ -63,7 +70,7 @@ export function projectReadableList(entries, policy) {
     period_label: String(policy.periodLabel || ""),
     as_of_jst: String(policy.asOfJst || ""),
     items: rows.map(function (r) {
-      return { published_address: r.published_address, display_label: r.display_label, count_band: r.count_band, subject: null, subject_visibility: "withheld" };
+      return { published_address: r.published_address, display_label: r.display_label, count_band: r.count_band, subject: r.subject, subject_visibility: "shown" };
     }),
     next_cursor: null
   };

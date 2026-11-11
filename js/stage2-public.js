@@ -4,6 +4,12 @@
   "use strict";
   var SCHEMA = "sender-history-draft-1";
 
+  function subjectText(raw) {
+    var t = String(raw == null ? "" : raw).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").replace(/\s+/g, " ").trim();
+    if (!t) return "（件名なし）";
+    if (t.length > 80) return t.slice(0, 80) + "…";
+    return t;
+  }
   function nfkc(s) {
     try { return String(s || "").normalize("NFKC"); } catch (e) { return String(s || ""); }
   }
@@ -115,7 +121,8 @@
           start_date: String(period.start_date || ""),
           as_of_jst: String(period.as_of_jst || "")
         },
-        names: names
+        names: names,
+        subject_display: subjectText(response.subject)
       });
     }
     return Object.assign(base, { status: "unavailable" });

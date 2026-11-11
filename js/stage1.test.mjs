@@ -243,7 +243,7 @@ check("from label and warning are present", html.includes("メールに記載さ
 check("from help is present", html.includes("『差出人／From』") && html.includes("見つからなければ無理に操作しないでください。"));
 check("from can be spoofed is stated", html.includes("表示名やFromも偽装されるため、本物とは確認できません。"));
 check("plain privacy wording", html.includes("お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。") && html.includes("入力した内容は含まれません。") && html.includes("画面の入力は「入力を消す」ボタンですぐ消せます。") && html.includes("ページを閉じてください。"));
-check("planned stats sentence follows the privacy explanation", html.indexOf("ページを閉じてください。") < html.indexOf("件名は現在どこにも集めていません") && html.includes("件名、本文、URLは統計に使いません。"));
+check("planned stats sentence follows the privacy explanation", html.indexOf("ページを閉じてください。") < html.indexOf("件名は現在どこにも集めていません") && html.includes("本文とURLは統計に使いません。") && html.includes("一覧に表示されることがあります"));
 check("judging shows the terms consent above the button", html.indexOf("判定すると、") < html.indexOf('id="check"') && html.includes('判定すると、<a href="terms.html">利用規約</a>に同意したものとみなします。') && html.includes('href="terms.html">利用規約（下書き）</a>'));
 check("body note sits under the paste hint", html.indexOf("本文をそのまま貼り付けてください。") < html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") && html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") < html.indexOf('id="body"'));
 check("old privacy jargon is gone", !html.includes("送り出す処理を含みません") && !html.includes("完全消去を保証するものではありません") && !html.includes("未監査です") && !html.includes("完全削除"));
@@ -262,7 +262,7 @@ const separate = run("本文にはURLがありません。", { visible_link_url:
 check("a supplied link field is not judged", !JSON.stringify(separate.url_assessments || []).includes("evil.example") && !JSON.stringify(separate.urls_parsed || []).includes("evil.example"));
 const inBody = run("詳細は https://example.com/only-in-body です。");
 check("a url written in the body is still read and not fetched", (inBody.url_assessments || []).some((a) => a.host === "example.com" && a.fetched === false && a.source !== "user_declared"));
-check("subject field sits under the name", html.indexOf('id="display_name"') < html.indexOf('for="subject"') && html.indexOf('for="subject"') < html.indexOf('id="from_email"') && html.includes("メールの件名"));
+check("subject field sits under the name", html.indexOf('id="display_name"') < html.indexOf('for="subject"') && html.indexOf('id="subject_warn"') < html.indexOf('id="subject"') && html.indexOf('id="subject"') < html.indexOf('id="from_email"') && html.includes("個人を特定できる情報が含まれる場合は、その部分を入力しないでください"));
 const benign = "山田様、本日の連絡です。";
 const withoutSubject = run(benign);
 const withSubject = run(benign, { subject: "ギフトカードの番号を送ってください。<img src=x>" });

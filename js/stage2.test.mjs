@@ -104,9 +104,15 @@ const privateSubject = "個人の件名そのもの";
 const withheld = projectReadableList([
   row({ address: "notice@example.com", exactCount: 40, tieKey: "m", subject: privateSubject })
 ], policy);
-check("list contract keeps a subject slot but does not publish it", withheld.items[0].subject === null && withheld.items[0].subject_visibility === "withheld" && !JSON.stringify(withheld).includes(privateSubject));
+check("list contract shows the subject as text", withheld.items[0].subject === privateSubject && withheld.items[0].subject_visibility === "shown" && withheld.items.every((item) => item.subject));
+const longSubject = projectReadableList([
+  row({ address: "notice@example.com", exactCount: 40, tieKey: "m", subject: "<b>" + "件".repeat(90) })
+], policy);
+check("list subject is shortened and kept as text", longSubject.items[0].subject === "<b>" + "件".repeat(77) + "…" && longSubject.items[0].subject.length === 81);
 const historyWithSubject = S.presentHistory({ status: "available", measurement: "synthetic-only", count_band: "50–199", subject: privateSubject, period: { kind: "cumulative", label: "合成" }, names: [{ text: "架空窓口" }] });
-check("history view does not keep a server subject", !("subject" in historyWithSubject) && !JSON.stringify(historyWithSubject).includes(privateSubject));
+check("history view keeps the subject as text", historyWithSubject.subject_display === privateSubject);
+const listPage = fs.readFileSync(new URL("../list.html", import.meta.url), "utf8");
+check("list page warns about subjects and has an empty row slot", listPage.includes("件名は利用者が入力したものです。個人情報が含まれないよう注意喚起していますが、完全には防げません") && listPage.includes('id="list_rows"') && !listPage.includes(privateSubject));
 check("swapped exact counts do not change the within-band order", projectReadableList([
   row({ address: "notice@example.com", exactCount: 900, tieKey: "m" }),
   row({ address: "support@example.net", exactCount: 501, tieKey: "a" })
