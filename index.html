@@ -21,6 +21,9 @@
     <span class="hint" id="dn_hint">メールアプリに表示されている名前（例: ヤマト運輸）</span>
     <input id="display_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200">
 
+    <label class="field" for="subject" id="subject_label">メールの件名 <span class="opt">（任意）</span></label>
+    <input id="subject" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="300">
+
     <label class="field" for="from_email" id="from_label">メールに記載されたアドレス</label>
     <p class="from-warn" id="from_warn">届いたメールの送り主のアドレスを入力してください。あなた自身のアドレス（宛先／To）や、パスワード・カード番号は入力しないでください。電話番号やSMS・SNSの送信元は対象外です。</p>
     <input id="from_email" type="text" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="320">
@@ -53,21 +56,23 @@
       <p>入力した本文やURLは、お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。</p>
       <p>ほかのサイトと同じように、ページを開いた時刻やブラウザの種類などの一般的なアクセス記録は配信会社に残りますが、入力した内容は含まれません。</p>
       <p>画面の入力は「入力を消す」ボタンですぐ消せます。共用の端末では、使い終わったらページを閉じてください。</p>
-      <p id="privacy_plan">判定に入力したメールアドレスと名前は、今後始める統計機能で利用する予定です（現在は集めていません）。本文やURLは統計に使いません。</p>
+      <p id="privacy_plan">判定に入力する情報は、メールに記載された名前、件名、メールアドレス、本文です。メールアドレス、名前、件名は現在どこにも集めていません。今後始める統計機能で利用する予定なのは、メールアドレスと名前です。件名、本文、URLは統計に使いません。</p>
     </div>
     <p id="history_pending">受付履歴の機能は準備中です。</p>
     <section id="history_panel" hidden>
       <h2>このアドレスの受付履歴</h2>
       <p id="history_query_note">まだ照会していません。この画面には履歴の照会先がありません。</p>
+      <p class="hint">件名は、この端末に今入力した内容を表示するだけです。</p>
+      <p id="history_subject">（件名なし）</p>
       <button type="button" id="history_query">このアドレスの受付履歴を見る</button>
       <div id="history_result"></div>
       <label class="context-option" for="history_consent"><input type="checkbox" id="history_consent"> 統計への受付登録に同意する（初期はオフ）</label>
-      <p class="hint" id="history_consent_note">同意は、メールに記載された名前とアドレスを統計対象の判定受付として送るための別操作です。本文とURLは送りません。入力した人の同意は、送信元本人の同意ではありません。現在この画面には送信先がありません。</p>
+      <p class="hint" id="history_consent_note">同意は、メールに記載された名前とアドレスを統計対象の判定受付として送るための別操作です。件名、本文、URLは送りません。入力した人の同意は、送信元本人の同意ではありません。現在この画面には送信先がありません。</p>
       <button type="button" id="history_submit">統計対象として送る</button>
       <p id="history_submit_result"></p>
       <p><a href="terms.html">利用規約（下書き）</a></p>
     </section>
-    <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。</p>
+    <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。件名も集めていません。</p>
   </form>
 
   <section id="result" aria-live="polite"></section>

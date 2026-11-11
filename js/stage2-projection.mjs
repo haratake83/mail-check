@@ -40,7 +40,9 @@ export function projectReadableList(entries, policy) {
       display_label: cleanLabel(e.reviewedLabel),
       count_band: band.label,
       bandRank: band.rank,
-      tieKey: typeof e.tieKey === "string" ? e.tieKey : ""
+      tieKey: typeof e.tieKey === "string" ? e.tieKey : "",
+      subject: null,
+      subject_visibility: "withheld"
     });
   });
   rows.sort(function (a, b) {
@@ -61,7 +63,7 @@ export function projectReadableList(entries, policy) {
     period_label: String(policy.periodLabel || ""),
     as_of_jst: String(policy.asOfJst || ""),
     items: rows.map(function (r) {
-      return { published_address: r.published_address, display_label: r.display_label, count_band: r.count_band };
+      return { published_address: r.published_address, display_label: r.display_label, count_band: r.count_band, subject: null, subject_visibility: "withheld" };
     }),
     next_cursor: null
   };

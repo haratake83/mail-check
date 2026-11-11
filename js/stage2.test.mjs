@@ -18,6 +18,9 @@ function check(name, cond, detail) {
 check("flags stay false", S.productionReady === false && S.privacyVerified === false);
 const q = S.buildQueryPayload({ address: "Notice@Example.com", body: "本文", visible_link_url: "https://example.com/a", context_answer: "yes", verdict: "no_clear_signal" });
 check("query rejects body and verdict", q.ok === false && q.reason === "forbidden_field" && !JSON.stringify(q).includes("本文"));
+const subj = "件名に個人情報サンプル";
+const rejected = S.buildSubmitPayload({ address: "a@example.com", consent: true, subject: subj });
+check("submit does not accept a subject", rejected.ok === false && rejected.reason === "forbidden_field" && !JSON.stringify(rejected).includes(subj));
 const qok = S.buildQueryPayload({ address: "Notice@Example.com" });
 check("query payload is address only", qok.ok && qok.payload.address === "Notice@example.com" && qok.payload.flow === "query" && !("body" in qok.payload) && !("display_name" in qok.payload));
 check("local-part case is kept", S.normalizeAddress("A.B+tag@Example.com").address === "A.B+tag@example.com");
@@ -97,6 +100,13 @@ check("small and unpermitted rows are absent", !blob.includes(hiddenAddr) && !bl
 check("exact counts are absent", !blob.includes("601") && !blob.includes("900") && !blob.includes("44") && !("exactCount" in (projected.items[0] || {})));
 check("unsafe label is hidden and address remains readable", projected.items[2].display_label === null && projected.items[2].published_address === "news@example.org");
 check("projection is not a finished server", projected.server === "none" && projected.productionReady === false && projected.privacyVerified === false && projected.implementation === "contract-test-only");
+const privateSubject = "個人の件名そのもの";
+const withheld = projectReadableList([
+  row({ address: "notice@example.com", exactCount: 40, tieKey: "m", subject: privateSubject })
+], policy);
+check("list contract keeps a subject slot but does not publish it", withheld.items[0].subject === null && withheld.items[0].subject_visibility === "withheld" && !JSON.stringify(withheld).includes(privateSubject));
+const historyWithSubject = S.presentHistory({ status: "available", measurement: "synthetic-only", count_band: "50–199", subject: privateSubject, period: { kind: "cumulative", label: "合成" }, names: [{ text: "架空窓口" }] });
+check("history view does not keep a server subject", !("subject" in historyWithSubject) && !JSON.stringify(historyWithSubject).includes(privateSubject));
 check("swapped exact counts do not change the within-band order", projectReadableList([
   row({ address: "notice@example.com", exactCount: 900, tieKey: "m" }),
   row({ address: "support@example.net", exactCount: 501, tieKey: "a" })

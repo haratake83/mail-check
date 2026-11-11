@@ -88,7 +88,7 @@ await evaluate(`document.getElementById("terms_agree").scrollIntoView({ block: "
 await shot("v092_consent_mobile.png", false);
 await evaluate(`document.getElementById("privacy_detail").scrollIntoView({ block: "end" })`);
 await shot("v092_privacy_plan_mobile.png", false);
-check("plain privacy text is on the form", (await evaluate(`document.getElementById("privacy_detail").innerText`)).includes("本文やURLが当サイトに送られたり、保存されたりすることはありません") && (await evaluate(`document.getElementById("privacy_plan").innerText`)).includes("現在は集めていません") && (await evaluate(`document.getElementById("terms_agree").innerText`)).includes("利用規約に同意したものとみなします"));
+check("plain privacy text is on the form", (await evaluate(`document.getElementById("privacy_detail").innerText`)).includes("本文やURLが当サイトに送られたり、保存されたりすることはありません") && (await evaluate(`document.getElementById("privacy_plan").innerText`)).includes("現在どこにも集めていません") && (await evaluate(`document.getElementById("terms_agree").innerText`)).includes("利用規約に同意したものとみなします"));
 check("separate link field is absent", (await evaluate(`document.getElementById("visible_link_url") === null && document.body.innerText.includes("本文に含まれるリンクだけを文字列として調べ、開きません")`)) === true);
 await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await shot("stage3_form_hidden_desktop.png");
@@ -134,6 +134,17 @@ await shot("stage3_terms_desktop.png");
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await shot("stage3_terms_mobile.png");
 
+await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+await go(origin + "/");
+const beforeImages = await evaluate(`document.images.length`);
+await evaluate(`document.getElementById("from_email").value = "notice@example.com"; document.getElementById("subject").value = "<img src=x onerror=alert(1)>" + "あ".repeat(90); document.getElementById("body").value = "山田様、本日の連絡です。"; document.getElementById("check").click();`);
+await evaluate(`new Promise((resolve) => { const t = setInterval(() => { if (document.querySelector("#result.show .summary-subject")) { clearInterval(t); resolve(true); } }, 20); })`);
+const shown = await evaluate(`document.querySelector("#result .summary-subject").textContent`);
+const historyShown = await evaluate(`document.getElementById("history_subject").textContent`);
+check("subject is text, shortened, and mirrored in the history slot", shown === historyShown && shown.startsWith("<img src=x") && shown.endsWith("…") && shown.length === 81 && (await evaluate(`document.images.length`)) === beforeImages, shown);
+await evaluate(`document.getElementById("clear").click();`);
+check("clear removes the subject", (await evaluate(`document.getElementById("subject").value`)) === "" && (await evaluate(`document.getElementById("history_subject").textContent`)) === "（件名なし）");
+await shot("v093_subject_mobile.png", false);
 check("only GET", net.every((r) => r.method === "GET"));
 check("only local host", net.every((r) => { try { return new URL(r.url).host === new URL(origin).host; } catch (e) { return false; } }));
 const report = {

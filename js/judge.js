@@ -952,7 +952,15 @@
     applyPurposeLead(res);
     applyInputGapLead(res);
     res.attention = attentionFrom(res);
+    res.subject_display = formatSubject(input.subject);
+    res.subject_used_in_score = false;
     return res;
+  }
+  function formatSubject(raw) {
+    var t = String(raw == null ? "" : raw).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").replace(/\s+/g, " ").trim();
+    if (!t) return "（件名なし）";
+    if (t.length > 80) return t.slice(0, 80) + "…";
+    return t;
   }
   function applyInputGapLead(res) {
     var issues = res.input_issues || [];

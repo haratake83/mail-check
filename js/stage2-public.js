@@ -30,7 +30,7 @@
     if (t.length > 80) t = t.slice(0, 80);
     return t;
   }
-  var FORBIDDEN = ["body", "url", "visible_link_url", "context_answer", "verdict", "danger_level", "purpose", "purpose_assessment", "spans", "span", "otp", "token", "display"];
+  var FORBIDDEN = ["body", "url", "visible_link_url", "subject", "context_answer", "verdict", "danger_level", "purpose", "purpose_assessment", "spans", "span", "otp", "token", "display"];
   function forbidden(fields) {
     if (!fields || typeof fields !== "object") return false;
     for (var i = 0; i < FORBIDDEN.length; i++) {

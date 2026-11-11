@@ -130,6 +130,7 @@ async function setFields(input) {
   await evaluate(`(() => {
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
     set("display_name", ${JSON.stringify(input.display_name || "")});
+    set("subject", ${JSON.stringify(input.subject || "")});
     set("from_email", ${JSON.stringify(input.from_email || "")});
     set("body", ${JSON.stringify(input.body || "")});
     const ctxValue = ${JSON.stringify(input.context_answer || "unknown")};
@@ -221,10 +222,11 @@ const cleared = await evaluate(`(() => ({
   body: document.getElementById("body").value,
   from: document.getElementById("from_email").value,
   name: document.getElementById("display_name").value,
+  subject: document.getElementById("subject").value,
   linkField: document.getElementById("visible_link_url"),
   result: document.getElementById("result").innerText
 }))()`);
-check("clear empties fields and result", cleared.body === "" && cleared.from === "" && cleared.name === "" && cleared.linkField === null && cleared.result === "", JSON.stringify(cleared));
+check("clear empties fields and result", cleared.body === "" && cleared.from === "" && cleared.name === "" && cleared.subject === "" && cleared.linkField === null && cleared.result === "", JSON.stringify(cleared));
 
 await setFields({ from_email: "notice@example.com", body: "履歴確認 ROUND2CLEARMARK", context_answer: "unknown" });
 await judge();

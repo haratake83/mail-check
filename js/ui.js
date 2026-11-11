@@ -37,7 +37,7 @@
 
   function clearAll() {
     generation += 1;
-    ["display_name", "from_email", "body"].forEach(function (id) { $(id).value = ""; });
+    ["display_name", "subject", "from_email", "body"].forEach(function (id) { $(id).value = ""; });
     var unk = document.querySelector('input[name="context_answer"][value="unknown"]');
     if (unk) unk.checked = true;
     judgmentKey = null;
@@ -50,6 +50,7 @@
     var sub = $("history_submit_result");
     if (sub) sub.textContent = "";
     if (historySession) { historySession.invalidate(); paintHistory(historySession.view()); }
+    paintSubject("（件名なし）");
   }
   $("clear").addEventListener("click", clearAll);
 
@@ -60,6 +61,7 @@
     try {
       r = window.MH_judge({
         display_name: $("display_name").value,
+        subject: $("subject").value,
         from_email: $("from_email").value,
         body: $("body").value,
         context_answer: radio("context_answer"),
@@ -174,6 +176,12 @@
     var d = r.display, box = $("result");
     box.textContent = "";
     box.className = "show v-" + d.tone;
+    paintSubject(r.subject_display || "（件名なし）");
+    var summary = el("div", "input-summary");
+    summary.appendChild(el("h2", "summary-head", "判定したメール"));
+    summary.appendChild(el("p", "summary-label", "件名"));
+    summary.appendChild(el("p", "summary-subject", r.subject_display || "（件名なし）"));
+    box.appendChild(summary);
     if (d.lead) {
       var lead = el("div", "lead-alert");
       lead.appendChild(el("h2", null, d.lead.headline));
@@ -229,6 +237,10 @@
     box.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   var historySession = null;
+  function paintSubject(text) {
+    var node = $("history_subject");
+    if (node) node.textContent = text || "（件名なし）";
+  }
   function paintHistory(view) {
     var box = $("history_result");
     if (!box) return;

@@ -70,6 +70,9 @@
 .v-yellow .verdict-head { color:#8a5200; }
 .v-grey .verdict-head { color:#333; }
 .notes { margin:0 0 12px; padding-left:1.2em; color:#444; }
+.input-summary { margin:0 0 16px; padding-bottom:12px; border-bottom:1px solid #eee; }
+.summary-label { margin:0; font-weight:700; }
+.summary-subject, #history_subject { margin:2px 0 0; overflow-wrap:anywhere; word-break:break-word; }
 details.more { margin-top:8px; font-size:0.92rem; }
 details.more summary { cursor:pointer; color:#555; min-height:32px; }
 .opt { font-weight:400; color:#888; }
