@@ -40,7 +40,7 @@ check("T-M4 confidence scale row is gone", !ui.includes("判定の確からし�
 const gap = run({ from_email: "", body: "ギフトカードの番号を送ってください。" });
 check("T-M5 empty from stays insufficient and adds the lead", gap.verdict === "insufficient" && gap.danger_level === "S" && gap.display.input_gap_lead && gap.display.input_gap_lead.headline === "入力が足りませんが、注意すべき特徴があります" && gap.attention.display === "—", gap.verdict + " " + gap.danger_level);
 check("T-M6 history panel is off by default", index.includes('id="history_panel" hidden') && index.includes("受付履歴の機能は準備中です") && globalThis.MH_FLAGS.FEATURE_HISTORY_PANEL === false);
-check("T-M7 terms stay public and linked", index.includes('href="terms.html"') && !/noindex/.test(terms) && terms.includes("弁護士の確認前の下書き") && globalThis.MH_FLAGS.FEATURE_TERMS_PUBLIC === true);
+check("T-M7 terms page remains but the link is hidden", index.includes('class="terms-public" href="terms.html" hidden') && !/noindex/.test(terms) && terms.includes("弁護士の確認前の下書き") && globalThis.MH_FLAGS.FEATURE_TERMS_PUBLIC === false);
 check("T-M8 internal memos are gone and blanks say 未定", terms.includes("未定") && !terms.includes("名称候補") && !terms.includes("0円") && !terms.includes("情報流通プラットフォーム") && !/株式会社|〒\d/.test(terms));
 check("T-M10 list link is hidden and the page is future tense", index.includes('id="list_link" hidden') && list.includes("判定の入力がそのままこの一覧に載ることはありません") && list.includes("掲載を始める場合は") && list.includes('name="robots" content="noindex"') && list.includes("掲載は不審なアドレスであることを意味しません") && globalThis.MH_FLAGS.FEATURE_LIST_PUBLIC === false);
 const unsub = run({ display_name: "ヤマト運輸", from_email: "notice@kuronekoyamato.co.jp", body: "山田様、配信停止のご案内です。" });

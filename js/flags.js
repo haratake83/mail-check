@@ -3,7 +3,7 @@
   g.MH_FLAGS = {
     FEATURE_HISTORY_PANEL: false,
     FEATURE_LIST_PUBLIC: false,
-    FEATURE_TERMS_PUBLIC: true,
+    FEATURE_TERMS_PUBLIC: false,
     FEATURE_ATTENTION: true
   };
 })(typeof globalThis !== "undefined" ? globalThis : this);

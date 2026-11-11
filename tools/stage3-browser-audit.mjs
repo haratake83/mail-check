@@ -101,7 +101,7 @@ let open = await evaluate(`document.querySelector(".attention-break").open`);
 const more = await evaluate(`document.querySelector(".attention-expl-more").textContent`);
 check("percent result shows 80 and the short non-probability sentence", text.includes("注意度（目安・確率ではありません）") && text.includes("80%") && text.includes("注意度の数値は、詐欺の確率でも安全の度合いでもありません。") && text.includes("詐欺メールの疑いが強いです") && !text.includes("確からしさの目安"), text.slice(0, 240));
 check("longer explanation stays in the collapsed details", open === false && more.includes("詐欺である確率・的中率・安全の度合いではありません"));
-check("version label is visible", text.includes("attention-scale-2026-11-09-a") && text.includes("判定プロトコル版：0.9.3"));
+check("version label is visible", text.includes("attention-scale-2026-11-09-a") && text.includes("判定プロトコル版：0.10"));
 await shot("stage3_percent_desktop.png");
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await shot("stage3_percent_mobile.png");

@@ -148,7 +148,7 @@
   }
 
   function renderAttention(r) {
-    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.9.3" };
+    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.10" };
     var numeric = a.display != null && a.display !== "—" && a.display !== "0" && a.display !== "100";
     var tone = !numeric ? "a-grey" : (a.display === "80" ? "a-red" : "a-yellow");
     var wrap = el("div", "attention " + tone);
@@ -164,7 +164,7 @@
       : "このケースでは注意度の数値は表示しません。下の判定区分の案内に従ってください。"));
     det.appendChild(el("p", null, a.breakdown_ja || "根拠の目安：強い特徴 0／中程度 0／弱い特徴 0（同じ根拠はまとめ、最終区分は最大優先です。件数を足し上げた確率ではありません）"));
     wrap.appendChild(det);
-    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.9.3") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
+    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.10") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
     return wrap;
   }
 
@@ -199,6 +199,7 @@
     box.appendChild(el("h2", "verdict-head", d.headline));
     if (d.banner) box.appendChild(el("p", "safety-banner", d.banner));
     box.appendChild(el("p", "verdict-body", d.body));
+    if (d.tone === "grey" || d.tone === "yellow") box.appendChild(el("p", "button-gap", "ボタンや画像、QRコードの本当の行き先は見ていません。見た目のリンク文字だけを判断材料にはできません。"));
     if (d.notes.length) { var ul0 = el("ul", "notes"); d.notes.forEach(function (n) { ul0.appendChild(el("li", null, n)); }); box.appendChild(ul0); }
     if (r.verdict !== "insufficient" || d.reasons.length) {
       box.appendChild(el("h3", "sec", "怪しいポイント"));
@@ -227,19 +228,41 @@
     meta.appendChild(el("span", null, "この判定方式の精度は未測定です"));
     box.appendChild(meta);
     var near = el("p", "terms-near");
-    near.appendChild(document.createTextNode("本結果は入力された文字情報に基づく参考情報であり、メールの真偽や安全性を保証するものではありません。注意度の数値は確率ではありません。詳しくは"));
-    var termsLink = el("a", null, "利用規約");
-    termsLink.href = "terms.html";
-    near.appendChild(termsLink);
-    near.appendChild(document.createTextNode("をご覧ください。"));
+    near.appendChild(document.createTextNode("本結果は入力された文字情報に基づく参考情報であり、メールの真偽や安全性を保証するものではありません。注意度の数値は確率ではありません。"));
+    if (window.MH_FLAGS && window.MH_FLAGS.FEATURE_TERMS_PUBLIC) {
+      near.appendChild(document.createTextNode("詳しくは"));
+      var termsLink = el("a", null, "利用規約");
+      termsLink.href = "terms.html";
+      near.appendChild(termsLink);
+      near.appendChild(document.createTextNode("をご覧ください。"));
+    }
     box.appendChild(near);
+    var guides = el("p", "result-guides");
+    function addGuide(href, label) {
+      var a = el("a", null, label);
+      a.href = href;
+      guides.appendChild(a);
+      guides.appendChild(document.createTextNode(" "));
+    }
+    addGuide("guides/how-to-spot.html", "見分け方");
+    addGuide("guides/if-you-opened.html", "リンクを開いてしまったら");
+    if (d.lead) addGuide("guides/malware.html", "マルウェアメールとは");
+    if ((r.purpose_assessment || []).some(function (p) { return p.tag === "credential_or_payment"; })) addGuide("guides/billing.html", "架空請求メールとは");
+    box.appendChild(guides);
     box.appendChild(el("small", "disclaimer", r.disclaimer_ja + " これは参考情報です。最終的な判断はご自身でお願いします。"));
     box.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   var historySession = null;
+  function maskHistorySubject(text) {
+    var t = String(text || "");
+    t = t.replace(/https?:\/\/\S+/gi, "＊＊＊");
+    t = t.replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "＊＊＊");
+    t = t.replace(/\d{4,}/g, "＊＊＊");
+    return t || "（件名なし）";
+  }
   function paintSubject(text) {
     var node = $("history_subject");
-    if (node) node.textContent = text || "（件名なし）";
+    if (node) node.textContent = maskHistorySubject(text || "（件名なし）");
   }
   function paintList(box, label, items, line) {
     box.appendChild(el("p", null, label));
@@ -340,6 +363,10 @@
       if ($("history_pending")) $("history_pending").hidden = true;
     }
     if (f.FEATURE_LIST_PUBLIC && $("list_link")) $("list_link").hidden = false;
+    if (f.FEATURE_TERMS_PUBLIC) {
+      document.querySelectorAll(".terms-public").forEach(function (node) { node.hidden = false; });
+      document.querySelectorAll(".terms-fallback").forEach(function (node) { node.hidden = true; });
+    }
   }
   applyChannel();
   applyFlags();

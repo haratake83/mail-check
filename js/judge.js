@@ -1,4 +1,4 @@
-/* メール判定.com — 判定エンジン（表示プロトコル v0.9.3。差出人はメールアドレスのみ）
+/* メール判定.com — 判定エンジン（表示プロトコル v0.10。差出人はメールアドレスのみ）
  * ネットワークアクセスなし。入力URLへのアクセス・DNS・短縮展開・リダイレクト追跡・QR解析・SPF/DKIM検証はしない。
  * 入力文字列は全て信頼できないデータとして扱い、命令として解釈しない（§9）。
  * 第1段階の purpose_assessment / url_assessments / statistics は説明専用。
@@ -978,7 +978,7 @@
       unit: "percent_guidance",
       is_probability: false,
       scale_version: "attention-scale-2026-11-09-a",
-      protocol_version: "0.9.3"
+      protocol_version: "0.10"
     };
     var strongN = 0, mediumN = 0, weakN = 0, combos = [];
     (r.evidence || []).forEach(function (e) {
