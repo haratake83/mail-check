@@ -70,8 +70,18 @@
 .v-yellow .verdict-head { color:#8a5200; }
 .v-grey .verdict-head { color:#333; }
 .notes { margin:0 0 12px; padding-left:1.2em; color:#444; }
-.url-guide { background:#f7f7f7; border-radius:6px; padding:10px 12px; font-size:0.88rem; color:#444; margin:4px 0 8px; }
-.url-guide p { margin:4px 0; }
+.input-summary { margin:0 0 16px; padding-bottom:12px; border-bottom:1px solid #eee; }
+.summary-label { margin:0; font-weight:700; }
+.summary-subject, #history_subject, .history-record-subject, #list_rows, #list_domains, #list_link_domains { margin:2px 0 0; overflow-wrap:anywhere; word-break:break-word; }
+.guide-nav a, .result-guides a { margin-right:0.6em; }
+.limit-box { background:#f7f7f7; border:1px solid #ddd; border-radius:8px; padding:12px 14px; margin:12px 0 20px; }
+.limit-box h2 { font-size:1.05rem; margin:0 0 8px; }
+.guide h1 { font-size:1.35rem; }
+.guide h2 { font-size:1.08rem; margin-top:1.4em; }
+.guide table { width:100%; border-collapse:collapse; font-size:0.92rem; }
+.guide th, .guide td { border:1px solid #ddd; padding:8px; vertical-align:top; text-align:left; }
+.guide a { overflow-wrap:anywhere; }
+#subject_warn, #list_subject_note { overflow-wrap:anywhere; }
 details.more { margin-top:8px; font-size:0.92rem; }
 details.more summary { cursor:pointer; color:#555; min-height:32px; }
 .opt { font-weight:400; color:#888; }
@@ -94,13 +104,7 @@ button:disabled { opacity:0.45; cursor:default; }
 .url-literal { color:#222; text-decoration:none; background:#f7f7f7; padding:8px; border-radius:6px; font-family:ui-monospace, monospace; }
 .lead-alert { border:2px solid #9a5b00; background:#fff6e8; border-radius:8px; padding:12px 14px; margin:0 0 14px; }
 .lead-alert h2 { margin:0 0 8px; font-size:1.12rem; color:#7a3e00; line-height:1.45; }
-.attention { border:1px solid #ddd; border-radius:8px; padding:12px 14px; margin:0 0 14px; background:#fff; }
-.attention-label { margin:0; font-weight:700; }
-.attention-score { margin:4px 0 8px; font-size:1.8rem; line-height:1.2; }
-.a-red .attention-score { color:#b00000; }
-.a-yellow .attention-score { color:#8a5200; }
-.a-grey .attention-score { color:#333; }
-.attention-expl, .attention-version, .terms-near { margin:0 0 8px; }
+.terms-near { margin:0 0 8px; }
 .draft-notice { background:#fff8f0; border:1px solid #f0d7b5; border-radius:8px; padding:10px 12px; font-weight:700; }
 .placeholder { background:#fff3cd; padding:0 4px; }
 h3.sec { font-size:1rem; margin:16px 0 6px; }

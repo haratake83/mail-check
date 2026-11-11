@@ -1,4 +1,4 @@
-/* メール判定.com — 判定エンジン（表示プロトコル v0.9.2。差出人はメールアドレスのみ）
+/* メール判定.com — 判定エンジン（表示プロトコル v0.10。差出人はメールアドレスのみ）
  * ネットワークアクセスなし。入力URLへのアクセス・DNS・短縮展開・リダイレクト追跡・QR解析・SPF/DKIM検証はしない。
  * 入力文字列は全て信頼できないデータとして扱い、命令として解釈しない（§9）。
  * 第1段階の purpose_assessment / url_assessments / statistics は説明専用。
@@ -172,7 +172,7 @@
 
   // ---------- URL抽出（ネットワークなし） ----------
   var URL_RE = /(?:https?:\/\/|hxxps?:\/\/|www\.)[^\s<>"'「」『』（）()]+|(?:[a-z0-9\-]+\.)+[a-z]{2,}\/[^\s<>"'「」『』（）()]*/gi;
-  function extractUrls(body, declared, P) {
+  function extractUrls(body, P) {
     var out = [], seen = {};
     function add(raw, source, idx) {
       var u = raw.replace(/[。、，．,.)）」』】>\]]+$/, "").replace(/^hxxp/i, "http");
@@ -195,7 +195,6 @@
     var m; URL_RE.lastIndex = 0;
     var b = nfkc(body);
     while ((m = URL_RE.exec(b))) add(m[0], "body", m.index);
-    if (declared && nfkc(declared).trim()) add(nfkc(declared).trim(), "user_declared", -1);
     return { urls: out, text: b };
   }
   function findLiteralSchemes(text) {
@@ -468,7 +467,7 @@
     }
     return tags;
   }
-  function buildUrlAssessments(urls, ctas, ev, comps, urlRels, claim, body, declared) {
+  function buildUrlAssessments(urls, ctas, ev, comps, urlRels, claim, body) {
     var items = [];
     var ctaByKey = {};
     ctas.forEach(function (c) {
@@ -536,7 +535,7 @@
       });
     });
     var seenScheme = {};
-    findLiteralSchemes(body).concat(findLiteralSchemes(declared || "")).forEach(function (scheme) {
+    findLiteralSchemes(body).forEach(function (scheme) {
       if (seenScheme[scheme]) return;
       seenScheme[scheme] = 1;
       var label = scheme === "data"
@@ -637,10 +636,9 @@
       comps.push(c); return c;
     }
 
-    var ex = extractUrls(body, input.visible_link_url, P);
+    var ex = extractUrls(body, P);
     var urls = ex.urls;
     res.urls_parsed = urls.map(function (u) { return { raw: redactUrl(u.raw), host: u.host, registrable: u.registrable, flags: u.flags.slice(), source: u.source }; });
-    if (urls.some(function (u) { return u.source === "user_declared"; })) res.unknowns.push("user_declared_url_unverified");
     var sents = sentences(body);
     var claims = detectClaims(display, body, P);
     var claim = claims.sender[0] || null;
@@ -714,10 +712,6 @@
       }
     });
 
-    // コピーURL（任意欄）: 対応CTAが1つなら対応付け（§4.8.6）
-    var declared = urls.filter(function (u) { return u.source === "user_declared"; })[0];
-    var linkCtas = ctas.filter(function (c) { return c.route === "url" || c.route === "missing"; });
-    if (declared && linkCtas.length === 1) { linkCtas[0].urls = [declared]; linkCtas[0].route = "url"; linkCtas[0].declared = true; }
     ctas.forEach(function (c) {
       if (c.route === "missing") addEv("A04", "F_cta_href", "cta:missing:" + c.idx, "weak", false, "ボタン等の本当の行き先を確認できません。押さないでください。");
     });
@@ -850,7 +844,7 @@
         var best = null;
         function cand(id, lvl, note, isNew) { var x = addComp(id, lvl, note, isNew); x.cta_id = c.idx; if (!best || LV[x.effective_level] > LV[best.effective_level]) best = x; }
         var targets = c.route === "missing" ? [{ rel: "opaque", missing: true }] : c.urls.map(function (u) { var r = urlRelation(u, claim.brand, P, scopedFor); r.u = u; return r; });
-        res.route_assessments.push({ cta_id: c.idx, link_state: c.route === "missing" ? "missing" : targets.some(function (t) { return t.rel === "opaque"; }) ? "opaque" : c.route, source: c.declared ? "user_declared" : "body", reply_request: f.reply_secret });
+        res.route_assessments.push({ cta_id: c.idx, link_state: c.route === "missing" ? "missing" : targets.some(function (t) { return t.rel === "opaque"; }) ? "opaque" : c.route, source: "body", reply_request: f.reply_secret });
         targets.forEach(function (t) {
           if (t.rel === "unrelated") {
             if (a01 || (b04l && (f.U_high || fromUnrel || fromFree))) cand("P16uH", routineGuard ? "M" : "S", "名乗った会社の確認済みドメインと結びつかないリンクで、情報入力を求めています。", true);
@@ -948,7 +942,7 @@
     });
     res.display = buildDisplay(res, ch);
     res.recommended_actions_ja = res.display.actions;
-    var stage1 = buildUrlAssessments(urls, ctas, ev, comps, urlRels, claim, body, input.visible_link_url);
+    var stage1 = buildUrlAssessments(urls, ctas, ev, comps, urlRels, claim, body);
     res.purpose_assessment = buildPurpose(body, ev);
     res.url_assessments = stage1.items;
     res.url_limits = stage1.limits;
@@ -957,8 +951,15 @@
     if (display && !claim) res.unknowns.push("unlisted_brand_claim");
     applyPurposeLead(res);
     applyInputGapLead(res);
-    res.attention = attentionFrom(res);
+    res.subject_display = formatSubject(input.subject);
+    res.subject_used_in_score = false;
     return res;
+  }
+  function formatSubject(raw) {
+    var t = String(raw == null ? "" : raw).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").replace(/\s+/g, " ").trim();
+    if (!t) return "（件名なし）";
+    if (t.length > 80) return t.slice(0, 80) + "…";
+    return t;
   }
   function applyInputGapLead(res) {
     var issues = res.input_issues || [];
@@ -969,36 +970,6 @@
         body: "メールに記載されたアドレスが読み取れませんでした。スマホでは差出人の詳細表示から From を確認してください。下に、本文側で検出した注意点があります。アドレス未入力でも安全という意味ではありません。"
       };
     }
-  }
-  function attentionFrom(r) {
-    var base = {
-      label_ja: "注意度（目安・確率ではありません）",
-      unit: "percent_guidance",
-      is_probability: false,
-      scale_version: "attention-scale-2026-11-09-a",
-      protocol_version: "0.9.2"
-    };
-    var strongN = 0, mediumN = 0, weakN = 0, combos = [];
-    (r.evidence || []).forEach(function (e) {
-      if (e.strength === "strong") strongN++;
-      else if (e.strength === "medium") mediumN++;
-      else if (e.strength === "weak") weakN++;
-    });
-    (r.composite_rules || []).forEach(function (c) {
-      if ((c.effective_level === "S" || c.policy_level === "S") && combos.indexOf(c.rule_id) < 0) combos.push(c.rule_id);
-    });
-    var breakdown = "根拠の目安：強い特徴 " + strongN + "／中程度 " + mediumN + "／弱い特徴 " + weakN;
-    if (r.danger_level === "S") breakdown += "。組合せで強い疑い" + (combos.length ? "：" + combos.join("、") : "");
-    if (r.verdict === "needs_review" && r.context_answer === "no" && strongN + mediumN + weakN === 0) breakdown += "。根拠：心当たりなしの回答のみ";
-    breakdown += "（同じ根拠はまとめ、最終区分は最大優先です。件数を足し上げた確率ではありません）";
-    base.breakdown_ja = breakdown;
-    base.strong_count = strongN;
-    base.combo_strong = combos;
-    if (r.verdict === "strong_suspicion") return Object.assign(base, { display: "80", band: [75, 85], hidden_reason: null });
-    if (r.verdict === "needs_review" && r.danger_level === "M") return Object.assign(base, { display: "60", band: [55, 65], hidden_reason: null });
-    if (r.verdict === "needs_review") return Object.assign(base, { display: "45", band: [40, 50], hidden_reason: null });
-    if (r.verdict === "no_clear_signal") return Object.assign(base, { display: "—", band: null, hidden_reason: "no_clear_signal" });
-    return Object.assign(base, { display: "—", band: null, hidden_reason: "insufficient" });
   }
   function applyPurposeLead(res) {
     var exec = (res.purpose_assessment || []).filter(function (p) { return p.tag === "malware_or_execution"; })[0];

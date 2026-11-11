@@ -14,12 +14,16 @@
 <main>
   <h1>メール判定.com</h1>
   <p class="lead">メール本文を貼ると、詐欺によく見られる怪しいポイントを指摘します。このサービスは、差出人がメールアドレスのメールだけを判定します。参考情報です。</p>
-  <p class="privacy">入力した本文やURLは、お使いの端末の中だけで判定します。メール内のリンクは開かないでください。詳しくは<a href="#privacy_detail">判定ボタンの下</a>にあります。</p>
+  <p class="privacy">本文（本文中のURLを含む）は、お使いの端末の中だけで判定します。本文に含まれるリンクだけを文字列として調べ、開きません。詳しくは<a href="#privacy_detail">判定ボタンの下</a>にあります。</p>
 
   <form id="form" novalidate autocomplete="off">
     <label class="field" for="display_name" id="dn_label">メールに記載された名前 <span class="opt">（任意）</span></label>
     <span class="hint" id="dn_hint">メールアプリに表示されている名前（例: ヤマト運輸）</span>
     <input id="display_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200">
+
+    <label class="field" for="subject" id="subject_label">メールの件名 <span class="opt">（任意）</span></label>
+    <p class="hint" id="subject_warn">件名、名前、アドレス、本文に、氏名、住所、電話番号、カード番号、パスワード、認証コード、注文番号などの個人情報を入れないでください。このサイトの判定に、それらの情報は不要です。</p>
+    <input id="subject" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="300">
 
     <label class="field" for="from_email" id="from_label">メールに記載されたアドレス</label>
     <p class="from-warn" id="from_warn">届いたメールの送り主のアドレスを入力してください。あなた自身のアドレス（宛先／To）や、パスワード・カード番号は入力しないでください。電話番号やSMS・SNSの送信元は対象外です。</p>
@@ -34,6 +38,7 @@
     <label class="field" for="body" id="body_label">メール本文</label>
     <span class="hint">本文をそのまま貼り付けてください。</span>
     <p class="hint" id="body_privacy">貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。</p>
+    <p class="hint" id="body_links">本文に含まれるリンクだけを文字列として調べ、開きません。</p>
     <textarea id="body" maxlength="50000" autocomplete="off" spellcheck="false"></textarea>
 
     <fieldset>
@@ -45,36 +50,33 @@
       </div>
     </fieldset>
 
-    <label class="field" for="visible_link_url">リンク先 <span class="opt">（任意・空欄のままで大丈夫です）</span></label>
-    <div class="url-guide">
-      <p>リンクを開く必要はありません。コピー方法に慣れていない場合は、空欄のまま判定してください。タップやクリックはしないでください。</p>
-      <p>ご利用のアプリでプレビューを開かずコピーできると分かっている場合だけ、長押しして「リンクをコピー」を選んでください。プレビューが出る・出そうな場合は操作を中止し、空欄にしてください。</p>
-      <p>パソコンでは、クリックせず右クリックから「リンクのアドレスをコピー」を選んでください。方法が不明なら操作不要です。</p>
-    </div>
-    <input id="visible_link_url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000">
-
-    <p class="terms-agree" id="terms_agree">判定すると、<a href="terms.html">利用規約</a>に同意したものとみなします。</p>
+    <p class="terms-agree" id="terms_agree">判定すると、<a class="terms-public" href="terms.html" hidden>利用規約</a><span class="terms-fallback">利用規約</span>に同意したものとみなします。</p>
     <button type="submit" id="check">判定する</button>
     <button type="button" id="clear">入力を消す</button>
     <div class="privacy-detail" id="privacy_detail">
-      <p>入力した本文やURLは、お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。</p>
+      <p>本文（本文中のURLを含む）は、お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。</p>
       <p>ほかのサイトと同じように、ページを開いた時刻やブラウザの種類などの一般的なアクセス記録は配信会社に残りますが、入力した内容は含まれません。</p>
       <p>画面の入力は「入力を消す」ボタンですぐ消せます。共用の端末では、使い終わったらページを閉じてください。</p>
-      <p id="privacy_plan">判定に入力したメールアドレスと名前は、今後始める統計機能で利用する予定です（現在は集めていません）。本文やURLは統計に使いません。</p>
+      <p id="privacy_plan">判定に入力する情報は、メールに記載された名前、件名、メールアドレス、本文です。メールアドレス、名前、件名、ドメインは現在どこにも集めていません。今後始める統計機能で利用する予定なのは、メールアドレス、名前、差出人のドメイン、本文内のリンク先ドメインです。件名は、判定結果と履歴、公開を始めたあとの一覧に表示されることがあります。本文とURLは統計に使いません。</p>
     </div>
     <p id="history_pending">受付履歴の機能は準備中です。</p>
     <section id="history_panel" hidden>
       <h2>このアドレスの受付履歴</h2>
       <p id="history_query_note">まだ照会していません。この画面には履歴の照会先がありません。</p>
+      <p id="history_limit_note">回数の多い順に、最大30件まで表示します。</p>
+      <p id="history_domain_note">同じドメインの別アドレスや、偽装された送信元も含まれます。ドメイン名は送信元の真正性を示しません。</p>
+      <p id="history_link_domain_note">本文内のリンク先ドメインは、本文に書かれていた文字です。リンクではありません。アクセスしないでください。悪意のあるサイトが含まれることがあります。送信者側が自由に書けるため、掲載は安全であることも危険であることも意味しません。</p>
+      <p class="hint">件名は、この端末の画面に出しているだけです。共用の端末では他の人に見えることがあります。「入力を消す」で消せます。伏せ字は完全な除去を保証しません。</p>
+      <p id="history_subject">（件名なし）</p>
       <button type="button" id="history_query">このアドレスの受付履歴を見る</button>
       <div id="history_result"></div>
       <label class="context-option" for="history_consent"><input type="checkbox" id="history_consent"> 統計への受付登録に同意する（初期はオフ）</label>
-      <p class="hint" id="history_consent_note">同意は、メールに記載された名前とアドレスを統計対象の判定受付として送るための別操作です。本文とURLは送りません。入力した人の同意は、送信元本人の同意ではありません。現在この画面には送信先がありません。</p>
+      <p class="hint" id="history_consent_note">同意は、メールに記載された名前とアドレスを統計対象の判定受付として送るための別操作です。件名、本文、URLは送りません。入力した人の同意は、送信元本人の同意ではありません。現在この画面には送信先がありません。</p>
       <button type="button" id="history_submit">統計対象として送る</button>
       <p id="history_submit_result"></p>
-      <p><a href="terms.html">利用規約（下書き）</a></p>
+      <p><a class="terms-public" href="terms.html" hidden>利用規約（下書き）</a></p>
     </section>
-    <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。</p>
+    <p class="stat-note" id="stats_note">全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。件名も、差出人のドメインも、本文内のリンク先ドメインも集めていません。公開を始めたあとの履歴や一覧に、文字として出ることがあります。</p>
   </form>
 
   <section id="result" aria-live="polite"></section>
@@ -82,8 +84,9 @@
   <footer>
     <p>これは参考情報です。最終的な判断はご自身でお願いします。</p>
     <p>本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。</p>
-    <p>判定プロトコル v0.9.2（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
-    <p><a href="terms.html">利用規約（下書き）</a> ／ <a href="#privacy_detail">プライバシーに関する説明</a></p>
+    <p>判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p><a class="terms-public" href="terms.html" hidden>利用規約（下書き）</a> <a href="#privacy_detail">プライバシーに関する説明</a></p>
+    <p class="guide-nav"><a href="guides/index.html">解説</a> ／ <a href="guides/how-to-spot.html">見分け方</a> ／ <a href="guides/if-you-opened.html">開いてしまったら</a> ／ <a href="guides/types.html">種類</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
   </footer>
 </main>

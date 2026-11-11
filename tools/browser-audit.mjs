@@ -130,9 +130,9 @@ async function setFields(input) {
   await evaluate(`(() => {
     const set = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
     set("display_name", ${JSON.stringify(input.display_name || "")});
+    set("subject", ${JSON.stringify(input.subject || "")});
     set("from_email", ${JSON.stringify(input.from_email || "")});
     set("body", ${JSON.stringify(input.body || "")});
-    set("visible_link_url", ${JSON.stringify(input.visible_link_url || "")});
     const ctxValue = ${JSON.stringify(input.context_answer || "unknown")};
     const ctx = document.querySelector('input[name="context_answer"][value="' + ctxValue + '"]');
     if (ctx) ctx.checked = true;
@@ -214,7 +214,7 @@ const clickView = await resultView();
 check("clickfix lead is before the grey verdict", clickView.lead.includes("先に読んでください") && clickView.text.indexOf("先に読んでください") < clickView.text.indexOf("判断できませんでした"), clickView.lead);
 check("clickfix does not say no features were found", !clickView.text.includes("検出できた特徴はありませんでした"));
 check("clickfix verdict class stays grey", clickView.className.includes("v-grey"));
-check("clickfix result has no anchors to pasted urls", clickView.anchors.every(function (h) { return h === "terms.html"; }));
+check("clickfix result has no anchors to pasted urls", clickView.anchors.every(function (h) { return h === "terms.html" || h.indexOf("guides/") === 0; }));
 await shot("stage1_clickfix_lead.png");
 
 await evaluate(`document.getElementById("clear").click()`);
@@ -222,10 +222,11 @@ const cleared = await evaluate(`(() => ({
   body: document.getElementById("body").value,
   from: document.getElementById("from_email").value,
   name: document.getElementById("display_name").value,
-  link: document.getElementById("visible_link_url").value,
+  subject: document.getElementById("subject").value,
+  linkField: document.getElementById("visible_link_url"),
   result: document.getElementById("result").innerText
 }))()`);
-check("clear empties fields and result", cleared.body === "" && cleared.from === "" && cleared.name === "" && cleared.link === "" && cleared.result === "", JSON.stringify(cleared));
+check("clear empties fields and result", cleared.body === "" && cleared.from === "" && cleared.name === "" && cleared.subject === "" && cleared.linkField === null && cleared.result === "", JSON.stringify(cleared));
 
 await setFields({ from_email: "notice@example.com", body: "履歴確認 ROUND2CLEARMARK", context_answer: "unknown" });
 await judge();
@@ -256,7 +257,6 @@ async function judged() {
     display_name: document.getElementById("display_name").value,
     from_email: document.getElementById("from_email").value,
     body: document.getElementById("body").value,
-    visible_link_url: document.getElementById("visible_link_url").value,
     context_answer: (document.querySelector('input[name="context_answer"]:checked') || {}).value || "",
     channel: (document.querySelector('input[name="channel"]:checked') || {}).value || "email"
   }))`);

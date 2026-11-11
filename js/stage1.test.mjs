@@ -243,8 +243,8 @@ check("from label and warning are present", html.includes("メールに記載さ
 check("from help is present", html.includes("『差出人／From』") && html.includes("見つからなければ無理に操作しないでください。"));
 check("from can be spoofed is stated", html.includes("表示名やFromも偽装されるため、本物とは確認できません。"));
 check("plain privacy wording", html.includes("お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。") && html.includes("入力した内容は含まれません。") && html.includes("画面の入力は「入力を消す」ボタンですぐ消せます。") && html.includes("ページを閉じてください。"));
-check("planned stats sentence follows the privacy explanation", html.indexOf("ページを閉じてください。") < html.indexOf("判定に入力したメールアドレスと名前は、今後始める統計機能で利用する予定です（現在は集めていません）。本文やURLは統計に使いません。") && html.includes("現在は集めていません"));
-check("judging shows the terms consent above the button", html.indexOf("判定すると、") < html.indexOf('id="check"') && html.includes('判定すると、<a href="terms.html">利用規約</a>に同意したものとみなします。') && html.includes('href="terms.html">利用規約（下書き）</a>'));
+check("planned stats sentence follows the privacy explanation", html.indexOf("ページを閉じてください。") < html.indexOf("ドメインは現在どこにも集めていません") && html.includes("本文とURLは統計に使いません。") && html.includes("本文内のリンク先ドメイン"));
+check("judging shows the terms consent above the button", html.indexOf("判定すると、") < html.indexOf('id="check"') && html.includes("利用規約</span>に同意したものとみなします。") && html.includes('class="terms-public" href="terms.html" hidden'));
 check("body note sits under the paste hint", html.indexOf("本文をそのまま貼り付けてください。") < html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") && html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") < html.indexOf('id="body"'));
 check("old privacy jargon is gone", !html.includes("送り出す処理を含みません") && !html.includes("完全消去を保証するものではありません") && !html.includes("未監査です") && !html.includes("完全削除"));
 check("stats unavailable sentence", html.includes("全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。"));
@@ -257,6 +257,23 @@ const code = stripComments([judgeSrc, ui, html, css, fs.readFileSync(new URL("./
 const banned = ["fetch(", "XMLHttpRequest", "sendBeacon", "localStorage", "sessionStorage", "indexedDB", "WebSocket", "gtag(", "googletagmanager"];
 banned.forEach((w) => check("production code has no " + w, !code.includes(w)));
 check("email only, no sms sender choice", !html.includes('value="sms"') && !ui.includes("SMSの送信元") && html.includes("メールアドレスのメールだけを判定します"));
+check("separate link field is gone", !html.includes("visible_link_url") && !html.includes("リンクをコピー") && !html.includes("リンクのアドレスをコピー") && !ui.includes("visible_link_url") && html.includes("本文に含まれるリンクだけを文字列として調べ、開きません。"));
+const separate = run("本文にはURLがありません。", { visible_link_url: "https://evil.example/secret-path" });
+check("a supplied link field is not judged", !JSON.stringify(separate.url_assessments || []).includes("evil.example") && !JSON.stringify(separate.urls_parsed || []).includes("evil.example"));
+const inBody = run("詳細は https://example.com/only-in-body です。");
+check("a url written in the body is still read and not fetched", (inBody.url_assessments || []).some((a) => a.host === "example.com" && a.fetched === false && a.source !== "user_declared"));
+const buttonOnly = run("山田様、口座が停止されます。こちらのボタンからログインしてください。", { display_name: "テスト銀行" });
+check("button only mail is not treated as a pasted url and keeps a limit", buttonOnly.verdict !== "strong_suspicion" && (buttonOnly.url_assessments || []).every((a) => a.fetched === false) && ui.includes("ボタンや画像、QRコードの本当の行き先は見ていません"));
+const urgentButton = run("山田様、今すぐこちらのボタンを押してください。");
+check("urgent button only stays inside the four verdicts", ["strong_suspicion", "needs_review", "no_clear_signal", "insufficient"].indexOf(urgentButton.verdict) >= 0 && !(urgentButton.url_assessments || []).some((a) => a.fetched));
+check("the page does not ask people to paste a separate link", !html.includes("リンク先を貼って") && !html.includes("長押しして") && html.includes("本文（本文中のURLを含む）"));
+check("subject field sits under the name", html.indexOf('id="display_name"') < html.indexOf('for="subject"') && html.indexOf('id="subject_warn"') < html.indexOf('id="subject"') && html.indexOf('id="subject"') < html.indexOf('id="from_email"') && html.includes("このサイトの判定に、それらの情報は不要です"));
+const benign = "山田様、本日の連絡です。";
+const withoutSubject = run(benign);
+const withSubject = run(benign, { subject: "ギフトカードの番号を送ってください。<img src=x>" });
+check("subject is display only and does not change the verdict", withoutSubject.verdict === withSubject.verdict && withoutSubject.danger_level === withSubject.danger_level && withSubject.subject_used_in_score === false && withSubject.subject_display === "ギフトカードの番号を送ってください。<img src=x>");
+check("empty subject is labeled and a long subject is shortened", run(benign, { subject: "   " }).subject_display === "（件名なし）" && run(benign, { subject: "あ".repeat(81) }).subject_display === "あ".repeat(80) + "…");
+check("subject is drawn with textContent", ui.includes('el("p", "summary-subject"') && ui.includes("history_subject") && ui.includes("textContent") && !ui.includes("innerHTML"));
 
 console.log("\n" + pass + " passed, " + fail + " failed.");
 console.log("PREEXISTING_UNFIXED (locked, not claimed as fixed):");
