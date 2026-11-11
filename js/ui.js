@@ -147,27 +147,6 @@
     return wrap;
   }
 
-  function renderAttention(r) {
-    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.10" };
-    var numeric = a.display != null && a.display !== "—" && a.display !== "0" && a.display !== "100";
-    var tone = !numeric ? "a-grey" : (a.display === "80" ? "a-red" : "a-yellow");
-    var wrap = el("div", "attention " + tone);
-    wrap.appendChild(el("p", "attention-label", a.label_ja));
-    wrap.appendChild(el("p", "attention-score", numeric ? a.display + "%" : "—"));
-    wrap.appendChild(el("p", "attention-expl", numeric
-      ? "注意度の数値は、詐欺の確率でも安全の度合いでもありません。"
-      : "数値が無いことは安全を意味しません。"));
-    var det = el("details", "attention-break");
-    det.appendChild(el("summary", null, "根拠の目安を見る"));
-    det.appendChild(el("p", "attention-expl-more", numeric
-      ? "注意度（目安）は、入力された文字情報に対するルール判定の警戒の目安です。詐欺である確率・的中率・安全の度合いではありません。実メールで校正した統計でもありません。メールに含まれる認証結果・本当のリンク先・添付ファイルの中身は評価していません。下の判定区分とあわせて、公式アプリやブックマークから直接確認してください。"
-      : "このケースでは注意度の数値は表示しません。下の判定区分の案内に従ってください。"));
-    det.appendChild(el("p", null, a.breakdown_ja || "根拠の目安：強い特徴 0／中程度 0／弱い特徴 0（同じ根拠はまとめ、最終区分は最大優先です。件数を足し上げた確率ではありません）"));
-    wrap.appendChild(det);
-    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.10") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
-    return wrap;
-  }
-
   function hasSubstantivePurpose(r) {
     return (r.purpose_assessment || []).some(function (p) { return p.tag && p.tag !== "unknown"; });
   }
@@ -195,7 +174,6 @@
       gap.appendChild(el("p", null, d.input_gap_lead.body));
       box.appendChild(gap);
     }
-    box.appendChild(renderAttention(r));
     box.appendChild(el("h2", "verdict-head", d.headline));
     if (d.banner) box.appendChild(el("p", "safety-banner", d.banner));
     box.appendChild(el("p", "verdict-body", d.body));
@@ -228,7 +206,7 @@
     meta.appendChild(el("span", null, "この判定方式の精度は未測定です"));
     box.appendChild(meta);
     var near = el("p", "terms-near");
-    near.appendChild(document.createTextNode("本結果は入力された文字情報に基づく参考情報であり、メールの真偽や安全性を保証するものではありません。注意度の数値は確率ではありません。"));
+    near.appendChild(document.createTextNode("本結果は入力された文字情報に基づく参考情報であり、メールの真偽や安全性を保証するものではありません。"));
     if (window.MH_FLAGS && window.MH_FLAGS.FEATURE_TERMS_PUBLIC) {
       near.appendChild(document.createTextNode("詳しくは"));
       var termsLink = el("a", null, "利用規約");

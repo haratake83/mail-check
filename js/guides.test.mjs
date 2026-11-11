@@ -19,7 +19,7 @@ const ui = read("js/ui.js");
 const flags = read("js/flags.js");
 pages.forEach(function (rel) {
   const html = read(rel);
-  check("T-M1 " + rel, html.includes("判断できませんでした") && html.includes("安全という意味ではありません") && html.includes("確率や的中率ではありません") && html.includes("SMSは判定の対象外です") && html.includes("本当のリンク先") && !html.includes("本サービスなら安全") && !html.includes("本サービスで安全"));
+  check("T-M1 " + rel, html.includes("判断できませんでした") && html.includes("安全という意味ではありません") && !html.includes("注意度") && html.includes("SMSは判定の対象外です") && html.includes("本当のリンク先") && !html.includes("本サービスなら安全") && !html.includes("本サービスで安全"));
 });
 const opened = read("guides/if-you-opened.html");
 check("T-M2 order", opened.indexOf("最初に確認すること") < opened.indexOf("入力・導入・電話・支払いをしていない場合") && opened.includes("フィッシングのメールやSMS") && opened.includes("疑わしいメールのURLや添付ファイルはクリックしない") && opened.indexOf("IPA") < opened.indexOf("総務省の企業・組織向けページ") && !opened.includes("開いただけなら大丈夫"));

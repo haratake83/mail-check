@@ -951,7 +951,6 @@
     if (display && !claim) res.unknowns.push("unlisted_brand_claim");
     applyPurposeLead(res);
     applyInputGapLead(res);
-    res.attention = attentionFrom(res);
     res.subject_display = formatSubject(input.subject);
     res.subject_used_in_score = false;
     return res;
@@ -971,36 +970,6 @@
         body: "メールに記載されたアドレスが読み取れませんでした。スマホでは差出人の詳細表示から From を確認してください。下に、本文側で検出した注意点があります。アドレス未入力でも安全という意味ではありません。"
       };
     }
-  }
-  function attentionFrom(r) {
-    var base = {
-      label_ja: "注意度（目安・確率ではありません）",
-      unit: "percent_guidance",
-      is_probability: false,
-      scale_version: "attention-scale-2026-11-09-a",
-      protocol_version: "0.10"
-    };
-    var strongN = 0, mediumN = 0, weakN = 0, combos = [];
-    (r.evidence || []).forEach(function (e) {
-      if (e.strength === "strong") strongN++;
-      else if (e.strength === "medium") mediumN++;
-      else if (e.strength === "weak") weakN++;
-    });
-    (r.composite_rules || []).forEach(function (c) {
-      if ((c.effective_level === "S" || c.policy_level === "S") && combos.indexOf(c.rule_id) < 0) combos.push(c.rule_id);
-    });
-    var breakdown = "根拠の目安：強い特徴 " + strongN + "／中程度 " + mediumN + "／弱い特徴 " + weakN;
-    if (r.danger_level === "S") breakdown += "。組合せで強い疑い" + (combos.length ? "：" + combos.join("、") : "");
-    if (r.verdict === "needs_review" && r.context_answer === "no" && strongN + mediumN + weakN === 0) breakdown += "。根拠：心当たりなしの回答のみ";
-    breakdown += "（同じ根拠はまとめ、最終区分は最大優先です。件数を足し上げた確率ではありません）";
-    base.breakdown_ja = breakdown;
-    base.strong_count = strongN;
-    base.combo_strong = combos;
-    if (r.verdict === "strong_suspicion") return Object.assign(base, { display: "80", band: [75, 85], hidden_reason: null });
-    if (r.verdict === "needs_review" && r.danger_level === "M") return Object.assign(base, { display: "60", band: [55, 65], hidden_reason: null });
-    if (r.verdict === "needs_review") return Object.assign(base, { display: "45", band: [40, 50], hidden_reason: null });
-    if (r.verdict === "no_clear_signal") return Object.assign(base, { display: "—", band: null, hidden_reason: "no_clear_signal" });
-    return Object.assign(base, { display: "—", band: null, hidden_reason: "insufficient" });
   }
   function applyPurposeLead(res) {
     var exec = (res.purpose_assessment || []).filter(function (p) { return p.tag === "malware_or_execution"; })[0];

@@ -104,13 +104,7 @@ button:disabled { opacity:0.45; cursor:default; }
 .url-literal { color:#222; text-decoration:none; background:#f7f7f7; padding:8px; border-radius:6px; font-family:ui-monospace, monospace; }
 .lead-alert { border:2px solid #9a5b00; background:#fff6e8; border-radius:8px; padding:12px 14px; margin:0 0 14px; }
 .lead-alert h2 { margin:0 0 8px; font-size:1.12rem; color:#7a3e00; line-height:1.45; }
-.attention { border:1px solid #ddd; border-radius:8px; padding:12px 14px; margin:0 0 14px; background:#fff; }
-.attention-label { margin:0; font-weight:700; }
-.attention-score { margin:4px 0 8px; font-size:1.8rem; line-height:1.2; }
-.a-red .attention-score { color:#b00000; }
-.a-yellow .attention-score { color:#8a5200; }
-.a-grey .attention-score { color:#333; }
-.attention-expl, .attention-version, .terms-near { margin:0 0 8px; }
+.terms-near { margin:0 0 8px; }
 .draft-notice { background:#fff8f0; border:1px solid #f0d7b5; border-radius:8px; padding:10px 12px; font-weight:700; }
 .placeholder { background:#fff3cd; padding:0 4px; }
 h3.sec { font-size:1rem; margin:16px 0 6px; }
