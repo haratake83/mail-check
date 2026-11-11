@@ -95,7 +95,7 @@ const projected = projectReadableList([
   row({ address: "other@example.org", exactCount: 50, tieKey: "a", permitAddress: "not-the-same@example.org" })
 ], policy);
 const blob = JSON.stringify(projected);
-check("bands descend and within a band exact count is not the sort", projected.items.map((i) => i.published_address).join(",") === "support@example.net,notice@example.com,news@example.org", projected.items.map((i) => i.published_address).join(","));
+check("higher internal count comes first and the number stays hidden", projected.items.map((i) => i.published_address).join(",") === "support@example.net,notice@example.com,news@example.org", projected.items.map((i) => i.published_address).join(","));
 check("small and unpermitted rows are absent", !blob.includes(hiddenAddr) && !blob.includes(hiddenName) && !blob.includes("tiny@example.com") && !blob.includes(otp) && !blob.includes(hmac) && !blob.includes(internalKey));
 check("exact counts are absent", !blob.includes("601") && !blob.includes("900") && !blob.includes("44") && !("exactCount" in (projected.items[0] || {})));
 check("unsafe label is hidden and address remains readable", projected.items[2].display_label === null && projected.items[2].published_address === "news@example.org");
@@ -113,17 +113,48 @@ const historyWithSubject = S.presentHistory({ status: "available", measurement: 
 check("history view keeps the subject as text", historyWithSubject.subject_display === privateSubject);
 const listPage = fs.readFileSync(new URL("../list.html", import.meta.url), "utf8");
 check("list page warns about subjects and has an empty row slot", listPage.includes("件名は利用者が入力したものです。個人情報が含まれないよう注意喚起していますが、完全には防げません") && listPage.includes('id="list_rows"') && !listPage.includes(privateSubject));
-check("swapped exact counts do not change the within-band order", projectReadableList([
+check("a higher internal count moves ahead inside the same band", projectReadableList([
   row({ address: "notice@example.com", exactCount: 900, tieKey: "m" }),
   row({ address: "support@example.net", exactCount: 501, tieKey: "a" })
-], policy).items.map((i) => i.published_address).join(",") === "support@example.net,notice@example.com");
+], policy).items.map((i) => i.published_address).join(",") === "notice@example.com,support@example.net");
+const tied = projectReadableList([
+  row({ address: "first@example.com", exactCount: 40, tieKey: "z" }),
+  row({ address: "second@example.com", exactCount: 40, tieKey: "a" })
+], policy);
+check("equal counts keep the existing order", tied.items.map((i) => i.published_address).join(",") === "first@example.com,second@example.com");
+const many = [];
+for (let i = 0; i < 31; i++) many.push(row({ address: "n" + i + "@example.com", exactCount: 100 + i, tieKey: "a", reviewedLabel: "名前" + i, subject: "件名" + i }));
+const capped = projectReadableList(many, policy);
+check("each list stops at 30 and drops the lowest count", capped.items.length === 30 && capped.names.length === 30 && capped.subjects.length === 30 && capped.items[0].published_address === "n30@example.com" && capped.items[29].published_address === "n1@example.com" && !JSON.stringify(capped).includes("n0@example.com") && !("exactCount" in capped.items[0]));
+check("an empty list is not reported as zero items", projectReadableList([], policy).status === "empty" && projectReadableList([], policy).items.length === 0 && !JSON.stringify(projectReadableList([], policy)).includes("0件"));
+const hiddenMany = [];
+for (let i = 0; i < 31; i++) hiddenMany.push({ text: "名前" + i, exactCount: i });
+const undisclosed = S.presentHistory({ status: "undisclosed", count_band: "0", names: hiddenMany, subjects: hiddenMany, addresses: hiddenMany });
+check("undisclosed history drops every list and any count", undisclosed.status === "undisclosed" && !("names" in undisclosed) && !("subjects" in undisclosed) && !JSON.stringify(undisclosed).includes("名前30") && !JSON.stringify(undisclosed).includes("0件"));
+const ranked = S.presentHistory({
+  status: "available", measurement: "synthetic-only", count_band: "20–99",
+  period: { kind: "cumulative", label: "合成" },
+  names: [
+    { text: "同数の前", exactCount: 5 },
+    { text: "同数の後", exactCount: 5 },
+    { text: "多い名前", exactCount: 9 }
+  ],
+  subjects: [
+    { text: "件名小", count_band: "20–99" },
+    { text: "件名大", count_band: "500以上" }
+  ],
+  addresses: hiddenMany.map(function (n, i) { return { address: "a" + i + "@example.com", exactCount: i + 1 }; })
+});
+check("history lists sort by count, keep ties, and cap at 30", ranked.names.map((n) => n.text).join(",") === "多い名前,同数の前,同数の後" && ranked.subjects.map((s) => s.text).join(",") === "件名大,件名小" && ranked.addresses.length === 30 && ranked.addresses[0].address === "a30@example.com" && !("exactCount" in ranked.names[0]) && !JSON.stringify(ranked).includes("a0@example.com"));
 check("a 7-day window is not called cumulative", projectReadableList([], { syntheticOnly: true, periodKind: "window", periodLabel: "直近7日（累計ではない）", minPublish: 20, bands: policy.bands }).period_kind === "window");
 
 const publicFiles = ["index.html", "list.html", "js/stage2-public.js", "js/ui.js", "css/app.css"];
 const publicText = publicFiles.map((f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8")).join("\n");
-[hiddenAddr, hiddenName, otp, hmac, internalKey, "601", "exactCount"].forEach((secret) => {
+[hiddenAddr, hiddenName, otp, hmac, internalKey, "601"].forEach((secret) => {
   check("public file hides " + secret, !publicText.includes(secret));
 });
+const visiblePages = ["index.html", "list.html", "js/ui.js", "css/app.css"].map((f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8")).join("\n");
+check("pages do not mention an exact count field", !visiblePages.includes("exactCount"));
 check("pages do not load the projection or the test", !publicText.includes("stage2-projection") && !publicText.includes("stage2.test"));
 check("list page states unavailable and the warning is not collapsed", fs.readFileSync(new URL("../list.html", import.meta.url), "utf8").includes("現在一覧を取得できません") && fs.readFileSync(new URL("../list.html", import.meta.url), "utf8").includes("掲載は不審なアドレスであることを意味しません") && !fs.readFileSync(new URL("../list.html", import.meta.url), "utf8").includes("<details"));
 check("public script has no network or storage call", !/fetch\s*\(|localStorage|XMLHttpRequest|sendBeacon/.test(fs.readFileSync(new URL("./stage2-public.js", import.meta.url), "utf8")));

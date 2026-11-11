@@ -124,7 +124,7 @@ await go(origin + "/list.html");
 const listText = await evaluate(`document.body.innerText`);
 const listHtml = await evaluate(`document.documentElement.outerHTML`);
 check("list warning is visible and not collapsed", listText.includes("掲載は不審なアドレスであることを意味しません") && listText.includes("所有者の関与・悪質性を示しません") && !listHtml.includes("<details"));
-check("list is unavailable and has no count", listText.includes("現在一覧を取得できません") && !/\d+件/.test(listText.replace("これは0件という意味ではありません。", "")));
+check("list is unavailable and has no count", listText.includes("現在一覧を取得できません") && listText.includes("最大30件まで表示します") && !/\d+件/.test(listText.replace("これは0件という意味ではありません。", "").replace("最大30件まで表示します。", "")));
 check("list has no mail link", !listHtml.includes("mailto:"));
 await shot("stage2_list_mobile.png");
 await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });

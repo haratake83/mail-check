@@ -241,6 +241,16 @@
     var node = $("history_subject");
     if (node) node.textContent = text || "（件名なし）";
   }
+  function paintList(box, label, items, line) {
+    box.appendChild(el("p", null, label));
+    if (!items || !items.length) {
+      box.appendChild(el("p", null, "表示できる" + label + "はありません。"));
+      return;
+    }
+    var ul = el("ul");
+    items.forEach(function (item) { ul.appendChild(el("li", null, line(item))); });
+    box.appendChild(ul);
+  }
   function paintHistory(view) {
     var box = $("history_result");
     if (!box) return;
@@ -263,14 +273,12 @@
       if (view.period && view.period.label) box.appendChild(el("p", null, view.period.label));
       if (view.period && view.period.start_date) box.appendChild(el("p", null, "開始日: " + view.period.start_date));
       if (view.period && view.period.as_of_jst) box.appendChild(el("p", null, "基準日時（JST）: " + view.period.as_of_jst));
-      if (!view.names || !view.names.length) box.appendChild(el("p", null, "表示できる名前はありません。"));
-      else {
-        var ul = el("ul");
-        view.names.forEach(function (n) { ul.appendChild(el("li", null, n.text)); });
-        box.appendChild(ul);
-      }
+      box.appendChild(el("p", null, "回数の多い順に、最大30件まで表示します。"));
+      paintList(box, "名前", view.names, function (n) { return n.text + (n.count_band ? "（" + n.count_band + "）" : ""); });
+      paintList(box, "件名", view.subjects, function (s) { return s.text + (s.count_band ? "（" + s.count_band + "）" : ""); });
+      paintList(box, "アドレス", view.addresses, function (a) { return a.address + (a.count_band ? "（" + a.count_band + "）" : ""); });
+      if (!view.subjects || !view.subjects.length) box.appendChild(el("p", "history-record-subject", "件名: " + (view.subject_display || "（件名なし）")));
       box.appendChild(el("p", null, "投稿者が入力した自称の名前です。本人・所有者・真正性を確認したものではありません。送信元は偽装できます。"));
-      box.appendChild(el("p", "history-record-subject", "件名: " + (view.subject_display || "（件名なし）")));
       return;
     }
     box.appendChild(el("p", null, "現在履歴を取得できません。"));

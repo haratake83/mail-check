@@ -93,6 +93,29 @@
       submit: function () { return Promise.resolve(Object.assign(unavailable(), { accepted: false })); }
     };
   }
+  function bandFloor(label) {
+    var m = String(label || "").match(/(\d+)/);
+    return m ? Number(m[1]) : 0;
+  }
+  function itemRank(item) {
+    if (item && typeof item.exactCount === "number" && isFinite(item.exactCount)) return item.exactCount;
+    return bandFloor(item && item.count_band);
+  }
+  function sortAndLimit(items) {
+    var rows = [];
+    for (var i = 0; i < items.length; i++) rows.push({ item: items[i], i: i, rank: itemRank(items[i]) });
+    rows.sort(function (a, b) {
+      if (a.rank !== b.rank) return b.rank - a.rank;
+      return a.i - b.i;
+    });
+    if (rows.length > 30) rows = rows.slice(0, 30);
+    return rows.map(function (row) { return row.item; });
+  }
+  function publicBand(item) {
+    var band = item && item.count_band != null ? String(item.count_band) : "";
+    if (!band || /^\d+$/.test(band)) return "";
+    return band;
+  }
   function presentHistory(response) {
     var base = { schema_version: SCHEMA, productionReady: false, privacyVerified: false, acceptance_increment: 0 };
     if (!response || response.status === "unavailable" || response.acceptance_increment) return Object.assign(base, { status: "unavailable" });
@@ -107,9 +130,36 @@
       if (/^\d+$/.test(String(response.count_band || ""))) return Object.assign(base, { status: "unavailable" });
       var names = [];
       (response.names || []).forEach(function (n) {
-        if (names.length >= 3) return;
         var text = sanitizeName(n && n.text);
-        if (text) names.push({ text: text });
+        if (!text) return;
+        names.push({ text: text, exactCount: n.exactCount, count_band: publicBand(n) });
+      });
+      names = sortAndLimit(names).map(function (n) {
+        var out = { text: n.text };
+        if (n.count_band) out.count_band = n.count_band;
+        return out;
+      });
+      var subjects = [];
+      var sourceSubjects = response.subjects || (response.subject != null ? [{ text: response.subject, count_band: response.count_band }] : []);
+      sourceSubjects.forEach(function (s) {
+        var text = subjectText(s && (s.text != null ? s.text : s));
+        subjects.push({ text: text, exactCount: s && s.exactCount, count_band: publicBand(s) });
+      });
+      subjects = sortAndLimit(subjects).map(function (s) {
+        var out = { text: s.text };
+        if (s.count_band) out.count_band = s.count_band;
+        return out;
+      });
+      var addresses = [];
+      (response.addresses || []).forEach(function (a) {
+        var n = normalizeAddress(a && (a.address || a.text || ""));
+        if (!n.ok) return;
+        addresses.push({ address: n.address, exactCount: a.exactCount, count_band: publicBand(a) });
+      });
+      addresses = sortAndLimit(addresses).map(function (a) {
+        var out = { address: a.address };
+        if (a.count_band) out.count_band = a.count_band;
+        return out;
       });
       return Object.assign(base, {
         status: "available",
@@ -122,7 +172,9 @@
           as_of_jst: String(period.as_of_jst || "")
         },
         names: names,
-        subject_display: subjectText(response.subject)
+        subjects: subjects,
+        addresses: addresses,
+        subject_display: subjects.length ? subjects[0].text : subjectText(response.subject)
       });
     }
     return Object.assign(base, { status: "unavailable" });

@@ -31,8 +31,8 @@ function unavailable() {
 export function projectReadableList(entries, policy) {
   if (!policy || policy.syntheticOnly !== true) return unavailable();
   if (policy.periodKind === "window" && /累計/.test(policy.periodLabel || "") && !/累計ではない/.test(policy.periodLabel || "")) return unavailable();
-  var rows = [];
-  (entries || []).forEach(function (e) {
+    var rows = [];
+    (entries || []).forEach(function (e, index) {
     if (!e || e.permitted !== true || e.reviewed !== true || e.basisConfirmed !== true) return;
     if (e.permitAddress !== e.address) return;
     if (typeof e.exactCount !== "number" || e.exactCount < policy.minPublish) return;
@@ -48,16 +48,18 @@ export function projectReadableList(entries, policy) {
       count_band: band.label,
       bandRank: band.rank,
       tieKey: typeof e.tieKey === "string" ? e.tieKey : "",
+      exactCount: e.exactCount,
+      inputIndex: index,
       subject: subjectText(e.subject),
-      subject_visibility: "shown"
+      subject_visibility: "shown",
+      nameText: cleanLabel(e.reviewedLabel)
     });
   });
   rows.sort(function (a, b) {
-    if (a.bandRank !== b.bandRank) return b.bandRank - a.bandRank;
-    if (a.tieKey < b.tieKey) return -1;
-    if (a.tieKey > b.tieKey) return 1;
-    return 0;
+    if (a.exactCount !== b.exactCount) return b.exactCount - a.exactCount;
+    return a.inputIndex - b.inputIndex;
   });
+  if (rows.length > 30) rows = rows.slice(0, 30);
   return {
     schema_version: "readable-list-draft-1",
     status: rows.length ? "available" : "empty",
@@ -72,6 +74,8 @@ export function projectReadableList(entries, policy) {
     items: rows.map(function (r) {
       return { published_address: r.published_address, display_label: r.display_label, count_band: r.count_band, subject: r.subject, subject_visibility: "shown" };
     }),
+    names: rows.filter(function (r) { return r.nameText; }).map(function (r) { return { text: r.nameText, count_band: r.count_band }; }),
+    subjects: rows.map(function (r) { return { text: r.subject, count_band: r.count_band }; }),
     next_cursor: null
   };
 }
