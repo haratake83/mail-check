@@ -37,7 +37,7 @@
 
   function clearAll() {
     generation += 1;
-    ["display_name", "from_email", "body", "visible_link_url"].forEach(function (id) { $(id).value = ""; });
+    ["display_name", "from_email", "body"].forEach(function (id) { $(id).value = ""; });
     var unk = document.querySelector('input[name="context_answer"][value="unknown"]');
     if (unk) unk.checked = true;
     judgmentKey = null;
@@ -63,7 +63,6 @@
         from_email: $("from_email").value,
         body: $("body").value,
         context_answer: radio("context_answer"),
-        visible_link_url: $("visible_link_url").value,
         channel: "email"
       });
     } catch (e) {
@@ -89,7 +88,7 @@
     wrap.appendChild(el("h3", "sec", "本文に見えるURLの特徴"));
     wrap.appendChild(el("p", null, "リンク先には当サイトからもアクセスしていません。URLの文字列の形だけを確認した結果です。実際のリンク先や安全性は確認できません。"));
     var items = r.url_assessments || [];
-    if (!items.length) wrap.appendChild(el("p", null, "本文と任意欄からURL文字列は見つかりませんでした。見つからないことは、安全という意味ではありません。"));
+    if (!items.length) wrap.appendChild(el("p", null, "本文からURL文字列は見つかりませんでした。見つからないことは、安全という意味ではありません。"));
     items.slice(0, 20).forEach(function (a) {
       var box = el("div", "url-item");
       box.appendChild(el("p", "url-literal", a.display || ""));
@@ -147,7 +146,7 @@
   }
 
   function renderAttention(r) {
-    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.9.2" };
+    var a = r.attention || { label_ja: "注意度（目安・確率ではありません）", display: "—", scale_version: "attention-scale-2026-11-09-a", protocol_version: "0.9.3" };
     var numeric = a.display != null && a.display !== "—" && a.display !== "0" && a.display !== "100";
     var tone = !numeric ? "a-grey" : (a.display === "80" ? "a-red" : "a-yellow");
     var wrap = el("div", "attention " + tone);
@@ -163,7 +162,7 @@
       : "このケースでは注意度の数値は表示しません。下の判定区分の案内に従ってください。"));
     det.appendChild(el("p", null, a.breakdown_ja || "根拠の目安：強い特徴 0／中程度 0／弱い特徴 0（同じ根拠はまとめ、最終区分は最大優先です。件数を足し上げた確率ではありません）"));
     wrap.appendChild(det);
-    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.9.2") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
+    wrap.appendChild(el("p", "attention-version", "判定プロトコル版：" + (a.protocol_version || "0.9.3") + " ／ 注意度定義版：" + (a.scale_version || "attention-scale-2026-11-09-a")));
     return wrap;
   }
 

@@ -14,7 +14,7 @@
 <main>
   <h1>メール判定.com</h1>
   <p class="lead">メール本文を貼ると、詐欺によく見られる怪しいポイントを指摘します。このサービスは、差出人がメールアドレスのメールだけを判定します。参考情報です。</p>
-  <p class="privacy">入力した本文やURLは、お使いの端末の中だけで判定します。メール内のリンクは開かないでください。詳しくは<a href="#privacy_detail">判定ボタンの下</a>にあります。</p>
+  <p class="privacy">入力した本文やURLは、お使いの端末の中だけで判定します。本文に含まれるリンクだけを文字列として調べ、開きません。詳しくは<a href="#privacy_detail">判定ボタンの下</a>にあります。</p>
 
   <form id="form" novalidate autocomplete="off">
     <label class="field" for="display_name" id="dn_label">メールに記載された名前 <span class="opt">（任意）</span></label>
@@ -34,6 +34,7 @@
     <label class="field" for="body" id="body_label">メール本文</label>
     <span class="hint">本文をそのまま貼り付けてください。</span>
     <p class="hint" id="body_privacy">貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。</p>
+    <p class="hint" id="body_links">本文に含まれるリンクだけを文字列として調べ、開きません。</p>
     <textarea id="body" maxlength="50000" autocomplete="off" spellcheck="false"></textarea>
 
     <fieldset>
@@ -44,14 +45,6 @@
         <label class="context-option"><input type="radio" name="context_answer" value="unknown" checked> わからない</label>
       </div>
     </fieldset>
-
-    <label class="field" for="visible_link_url">リンク先 <span class="opt">（任意・空欄のままで大丈夫です）</span></label>
-    <div class="url-guide">
-      <p>リンクを開く必要はありません。コピー方法に慣れていない場合は、空欄のまま判定してください。タップやクリックはしないでください。</p>
-      <p>ご利用のアプリでプレビューを開かずコピーできると分かっている場合だけ、長押しして「リンクをコピー」を選んでください。プレビューが出る・出そうな場合は操作を中止し、空欄にしてください。</p>
-      <p>パソコンでは、クリックせず右クリックから「リンクのアドレスをコピー」を選んでください。方法が不明なら操作不要です。</p>
-    </div>
-    <input id="visible_link_url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="2000">
 
     <p class="terms-agree" id="terms_agree">判定すると、<a href="terms.html">利用規約</a>に同意したものとみなします。</p>
     <button type="submit" id="check">判定する</button>
@@ -82,7 +75,7 @@
   <footer>
     <p>これは参考情報です。最終的な判断はご自身でお願いします。</p>
     <p>本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。</p>
-    <p>判定プロトコル v0.9.2（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p>判定プロトコル v0.9.3（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a href="terms.html">利用規約（下書き）</a> ／ <a href="#privacy_detail">プライバシーに関する説明</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
   </footer>

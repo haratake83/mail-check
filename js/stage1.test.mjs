@@ -257,6 +257,11 @@ const code = stripComments([judgeSrc, ui, html, css, fs.readFileSync(new URL("./
 const banned = ["fetch(", "XMLHttpRequest", "sendBeacon", "localStorage", "sessionStorage", "indexedDB", "WebSocket", "gtag(", "googletagmanager"];
 banned.forEach((w) => check("production code has no " + w, !code.includes(w)));
 check("email only, no sms sender choice", !html.includes('value="sms"') && !ui.includes("SMSの送信元") && html.includes("メールアドレスのメールだけを判定します"));
+check("separate link field is gone", !html.includes("visible_link_url") && !html.includes("リンクをコピー") && !html.includes("リンクのアドレスをコピー") && !ui.includes("visible_link_url") && html.includes("本文に含まれるリンクだけを文字列として調べ、開きません。"));
+const separate = run("本文にはURLがありません。", { visible_link_url: "https://evil.example/secret-path" });
+check("a supplied link field is not judged", !JSON.stringify(separate.url_assessments || []).includes("evil.example") && !JSON.stringify(separate.urls_parsed || []).includes("evil.example"));
+const inBody = run("詳細は https://example.com/only-in-body です。");
+check("a url written in the body is still read and not fetched", (inBody.url_assessments || []).some((a) => a.host === "example.com" && a.fetched === false && a.source !== "user_declared"));
 
 console.log("\n" + pass + " passed, " + fail + " failed.");
 console.log("PREEXISTING_UNFIXED (locked, not claimed as fixed):");

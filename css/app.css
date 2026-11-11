@@ -70,8 +70,6 @@
 .v-yellow .verdict-head { color:#8a5200; }
 .v-grey .verdict-head { color:#333; }
 .notes { margin:0 0 12px; padding-left:1.2em; color:#444; }
-.url-guide { background:#f7f7f7; border-radius:6px; padding:10px 12px; font-size:0.88rem; color:#444; margin:4px 0 8px; }
-.url-guide p { margin:4px 0; }
 details.more { margin-top:8px; font-size:0.92rem; }
 details.more summary { cursor:pointer; color:#555; min-height:32px; }
 .opt { font-weight:400; color:#888; }

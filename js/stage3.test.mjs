@@ -36,7 +36,7 @@ check("A06 lead and strong attention coexist", lead.verdict === "strong_suspicio
 const again = run("ギフトカードの番号を送ってください。");
 check("A07 repeat is stable", again.attention.display === strong.attention.display && again.verdict === strong.verdict && again.danger_level === strong.danger_level);
 [strong, reviewM, reviewN, reviewW, grey, insuff, lead].forEach(function (r) {
-  check("scale and not a probability " + r.verdict + r.danger_level, attnOk(r.attention) && r.attention.protocol_version === "0.9.2");
+  check("scale and not a probability " + r.verdict + r.danger_level, attnOk(r.attention) && r.attention.protocol_version === "0.9.3");
 });
 check("no displayed value is 0 or 100", [strong, reviewM, reviewN, grey, insuff].every(function (r) { return r.attention.display !== "0" && r.attention.display !== "100"; }));
 

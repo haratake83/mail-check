@@ -52,7 +52,7 @@ async function evaluate(expression) {
 await send("Page.navigate", { url: origin + "/" });
 await evaluate(`new Promise((resolve) => { if (document.readyState === "complete") resolve(true); else addEventListener("load", () => resolve(true), { once: true }); })`);
 const before = net.length;
-await evaluate(`document.getElementById("display_name").value = ${JSON.stringify(marker)}; document.getElementById("from_email").value = "notice@example.com"; document.getElementById("body").value = ${JSON.stringify("本文 " + marker + " https://example.com/" + marker)}; document.getElementById("visible_link_url").value = ${JSON.stringify("https://example.com/" + marker)}; document.getElementById("check").click();`);
+await evaluate(`document.getElementById("display_name").value = ${JSON.stringify(marker)}; document.getElementById("from_email").value = "notice@example.com"; document.getElementById("body").value = ${JSON.stringify("本文 " + marker + " https://example.com/" + marker)}; document.getElementById("check").click();`);
 await evaluate(`new Promise((resolve) => { const t = setInterval(() => { if (document.querySelector("#result.show")) { clearInterval(t); resolve(true); } }, 20); })`);
 await evaluate(`new Promise((r) => setTimeout(r, 400))`);
 const leaked = net.filter((r) => (r.url + "\n" + r.postData).includes(marker));
