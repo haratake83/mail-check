@@ -1,4 +1,4 @@
-// 解説ページ v0.10 の受け入れ確認。node js/guides.test.mjs
+// 解説ページ v0.10.1 の受け入れ確認。node js/guides.test.mjs
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -29,7 +29,11 @@ check("T-M4 contacts table", contacts.includes("確認日2026-11-11") && contact
 check("T-M5 definitions sit with numbers", read("guides/phishing.html").includes("被害の件数ではありません") && read("guides/phishing.html").includes("94,661") && read("guides/phishing.html").includes("かたる") && read("guides/billing.html").includes("被害件数ではない") && read("guides/spam.html").includes("受信箱に届く割合ではありません") && !read("guides/billing.html").includes("半減"));
 const site = allGuides + index;
 check("T-M6 no copy-link instructions", !index.includes("長押しして「リンクをコピー」") && !index.includes("リンク先を貼って") && read("guides/how-to-spot.html").includes("このサイトでは案内しません"));
-check("T-M7 unverified items are marked", allGuides.includes("未確認") && !allGuides.includes("オプトイン") && !read("guides/malware.html").includes("Emotet") && !allGuides.includes("ばらまき型が多い"));
+check("T-M7 dated examples stay bounded", read("guides/malware.html").includes("Emotet") && read("guides/malware.html").includes("2019年から2023年") && read("guides/types.html").includes("106件") && read("guides/types.html").includes("相談の件数です") && !allGuides.includes("オプトイン") && !allGuides.includes("ばらまき型が多い") && !allGuides.includes("返金は難しい") && !allGuides.includes("裁判所はメール"));
+const visible = allGuides.replace(/<[^>]+>/g, " ");
+check("T-PLAIN no internal identifiers on guide pages", !/P-S\d*/.test(allGuides) && !/\bM\d+\b/.test(visible) && !visible.includes("仕様") && !visible.includes("未照合") && !visible.includes("公開前確認") && !visible.includes("未確認") && !visible.includes("載せません") && !visible.includes("公開前"));
+const external = allGuides.match(/<a\b[^>]*href="https?:\/\/[^"]+"[^>]*>/g) || [];
+check("T-PLAIN official links name a page and do not open the referrer", external.length > 0 && external.every(function (tag) { return tag.includes('rel="noopener noreferrer"'); }));
 check("T-M8 no link field", !index.includes("visible_link_url") && index.includes("本文（本文中のURLを含む）"));
 check("T-M9 button warning is in the result renderer", ui.includes("ボタンや画像、QRコードの本当の行き先は見ていません"));
 check("T-R10 enterprise page is labeled", read("guides/malware.html").includes("企業・組織向け"));
