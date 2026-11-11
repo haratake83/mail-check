@@ -146,6 +146,37 @@ const ranked = S.presentHistory({
   addresses: hiddenMany.map(function (n, i) { return { address: "a" + i + "@example.com", exactCount: i + 1 }; })
 });
 check("history lists sort by count, keep ties, and cap at 30", ranked.names.map((n) => n.text).join(",") === "多い名前,同数の前,同数の後" && ranked.subjects.map((s) => s.text).join(",") === "件名大,件名小" && ranked.addresses.length === 30 && ranked.addresses[0].address === "a30@example.com" && !("exactCount" in ranked.names[0]) && !JSON.stringify(ranked).includes("a0@example.com"));
+check("sender domain is normalized and invalid addresses are omitted", S.domainFromAddress(" User@Example.COM. ").text === "example.com" && S.domainFromAddress("") === null && S.domainFromAddress("not-an-email") === null && S.domainFromAddress("a@b") === null);
+const senderDomains = [];
+for (let i = 0; i < 31; i++) senderDomains.push({ address: "u" + i + "@d" + i + ".example", exactCount: i + 1 });
+senderDomains.push({ address: "later@d0.example", exactCount: 1 });
+const domainHistory = S.presentHistory({
+  status: "available", measurement: "synthetic-only", count_band: "20–99",
+  period: { kind: "cumulative", label: "合成" },
+  domains: senderDomains
+});
+check("sender domains sort, cap at 30, and keep a tie in input order", domainHistory.domains.length === 30 && domainHistory.domains[0].domain === "d30.example" && domainHistory.domains[29].domain === "d0.example" && !domainHistory.domains.some((d) => d.domain === "d1.example") && !("exactCount" in domainHistory.domains[0]));
+const tiedDomains = S.presentHistory({
+  status: "available", measurement: "synthetic-only", count_band: "20–99",
+  period: { kind: "cumulative", label: "合成" },
+  domains: [{ domain: "a.example", exactCount: 4 }, { domain: "b.example", exactCount: 4 }]
+});
+check("equal domain counts stay in the existing order", tiedDomains.domains.map((d) => d.domain).join(",") === "a.example,b.example");
+const secretUrl = "https://user:secretpass@Evil.Example/hidden/path?q=1#frag";
+const linkRows = [
+  row({ address: "notice@example.com", exactCount: 40, linkHosts: [secretUrl, secretUrl, "http://192.0.2.1/admin", "https://short.example/x"] }),
+  row({ address: "other@example.net", exactCount: 30, linkHosts: ["https://phish.test/a"] })
+];
+const linkList = projectReadableList(linkRows, policy);
+check("body link domains are hosts only, deduped per message, and not links", linkList.link_domains.map((d) => d.text).join(",") === "evil.example,192.0.2.1,short.example,phish.test" && linkList.link_domains[0].count_band === "20–99" && !JSON.stringify(linkList.link_domains).includes("secretpass") && !JSON.stringify(linkList.link_domains).includes("/hidden") && !JSON.stringify(linkList.link_domains).includes("q=1") && linkList.domains.map((d) => d.domain).join(",") === "example.com,example.net");
+const manyHosts = [];
+for (let i = 0; i < 31; i++) manyHosts.push(row({ address: "h" + i + "@example.com", exactCount: 20 + i, linkHosts: ["https://h" + i + ".example/path"] }));
+const cappedHosts = projectReadableList(manyHosts, policy);
+check("body link domains stop at 30", cappedHosts.link_domains.length === 30 && cappedHosts.link_domains[0].text === "h30.example" && !JSON.stringify(cappedHosts.link_domains).includes("h0.example") && !JSON.stringify(cappedHosts.link_domains).includes("/path"));
+const closedLinks = S.presentHistory({ status: "undisclosed", link_domains: [{ host: secretUrl, exactCount: 9 }] });
+check("undisclosed history does not show link domains", closedLinks.status === "undisclosed" && !("link_domains" in closedLinks) && !JSON.stringify(closedLinks).includes("secretpass"));
+const uiSrc = fs.readFileSync(new URL("./ui.js", import.meta.url), "utf8");
+check("link domain rows are plain text", uiSrc.includes('paintList(box, "本文内のリンク先ドメイン"') && !/list_link_domains[\s\S]{0,200}<a/.test(listPage) && listPage.includes("リンクではありません。アクセスしないでください。"));
 check("a 7-day window is not called cumulative", projectReadableList([], { syntheticOnly: true, periodKind: "window", periodLabel: "直近7日（累計ではない）", minPublish: 20, bands: policy.bands }).period_kind === "window");
 
 const publicFiles = ["index.html", "list.html", "js/stage2-public.js", "js/ui.js", "css/app.css"];

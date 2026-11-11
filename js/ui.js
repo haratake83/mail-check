@@ -277,6 +277,8 @@
       paintList(box, "名前", view.names, function (n) { return n.text + (n.count_band ? "（" + n.count_band + "）" : ""); });
       paintList(box, "件名", view.subjects, function (s) { return s.text + (s.count_band ? "（" + s.count_band + "）" : ""); });
       paintList(box, "アドレス", view.addresses, function (a) { return a.address + (a.count_band ? "（" + a.count_band + "）" : ""); });
+      paintList(box, "ドメイン", view.domains, function (d) { return d.text + (d.count_band ? "（" + d.count_band + "）" : ""); });
+      paintList(box, "本文内のリンク先ドメイン", view.link_domains, function (d) { return d.text + (d.count_band ? "（" + d.count_band + "）" : ""); });
       if (!view.subjects || !view.subjects.length) box.appendChild(el("p", "history-record-subject", "件名: " + (view.subject_display || "（件名なし）")));
       box.appendChild(el("p", null, "投稿者が入力した自称の名前です。本人・所有者・真正性を確認したものではありません。送信元は偽装できます。"));
       return;
