@@ -232,7 +232,7 @@ await setViewport(1280, 900, false);
 await shot("front-desktop.png");
 const look = await evaluate(`(() => {
   const wm = document.querySelector(".site-wordmark");
-  const tld = document.querySelector(".site-tld");
+  const logo = wm && wm.querySelector("img");
   const btn = document.getElementById("check");
   const intro = document.querySelector(".intro-block");
   const warn = document.getElementById("subject_warn");
@@ -240,7 +240,6 @@ const look = await evaluate(`(() => {
   const bodyNotes = document.querySelector(".body-notes");
   const foot = document.querySelector("footer");
   const ws = getComputedStyle(wm);
-  const ts = getComputedStyle(tld);
   const bs = getComputedStyle(btn);
   const ns = getComputedStyle(nameHint);
   const ys = getComputedStyle(warn);
@@ -248,9 +247,10 @@ const look = await evaluate(`(() => {
   return {
     title: document.title,
     og: document.querySelector('meta[property="og:title"]').content,
-    word: wm.textContent,
-    weight: ws.fontWeight,
-    tldWeight: ts.fontWeight,
+    word: logo ? logo.alt : "",
+    logoSrc: logo ? logo.getAttribute("src") : "",
+    logoW: logo ? logo.naturalWidth : 0,
+    logoH: logo ? logo.naturalHeight : 0,
     ink: ws.color,
     frame: ws.borderTopColor,
     fill: ws.backgroundColor,
@@ -269,8 +269,8 @@ const look = await evaluate(`(() => {
     fontLoaded
   };
 })()`);
-check("wordmark shows 詐欺メール判定.com", look.word.replace(/\s/g, "") === "詐欺メール判定.com" && look.title.startsWith("詐欺メール判定.com") && look.og === "詐欺メール判定.com", JSON.stringify(look));
-check("wordmark is black Zen Kaku Gothic New 900 inside the green frame", look.fontLoaded === true && (look.weight === "900" || Number(look.weight) >= 900) && /17,\s*17,\s*17/.test(look.ink) && /47,\s*107,\s*79/.test(look.frame) && /250,\s*252,\s*251/.test(look.fill) && (look.tldWeight === "500" || Number(look.tldWeight) === 500), JSON.stringify(look));
+check("header logo is 詐欺メールチェック.com inside the page", look.word === "詐欺メールチェック.com" && look.logoSrc === "img/sagi-mail-check-logo.png" && look.logoW === 1601 && look.logoH === 418 && look.title.startsWith("詐欺メール判定.com") && look.og === "詐欺メール判定.com", JSON.stringify(look));
+check("header logo sits in the green frame", /47,\s*107,\s*79/.test(look.frame) && /255,\s*255,\s*255/.test(look.fill), JSON.stringify(look));
 check("judge button is white text-black with a 2px green frame", /255,\s*255,\s*255/.test(look.btnBg) && /17,\s*17,\s*17/.test(look.btnColor) && /47,\s*107,\s*79/.test(look.btnBorder) && look.btnBorderWidth === "2px", JSON.stringify(look));
 check("explanations are beige and cautions are yellow with a 1px frame", /246,\s*237,\s*227/.test(look.introBg) && /248,\s*231,\s*193/.test(look.warnBg) && look.warnBorder === "1px" && look.nameBg === look.warnBg && look.bodyBg === look.warnBg, JSON.stringify(look));
 check("footer is beige with a 2px green top border", /246,\s*237,\s*227/.test(look.footBg) && /47,\s*107,\s*79/.test(look.footBorder) && look.footBorderWidth === "2px", JSON.stringify(look));
