@@ -15,7 +15,7 @@ const chromeBin = [process.env.CHROME_PATH, "/usr/bin/google-chrome", "/usr/bin/
 if (!chromeBin) { console.error("Chrome がありません"); process.exit(2); }
 const headerList = (JSON.parse(readFileSync(path.join(root, "vercel.json"), "utf8")).headers[0].headers);
 const staticHeaders = Object.fromEntries(headerList.map((h) => [h.key, h.value]));
-const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8" };
+const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8" };
 const site = createServer((req, res) => {
   const url = new URL(req.url, "http://127.0.0.1");
   let p = decodeURIComponent(url.pathname);
@@ -68,6 +68,7 @@ async function evaluate(expression) {
 async function go(url) {
   await send("Page.navigate", { url });
   await evaluate(`new Promise((resolve) => { if (document.readyState === "complete") resolve(true); else addEventListener("load", () => resolve(true), { once: true }); })`);
+  await evaluate(`document.fonts.ready`);
 }
 async function shot(name) {
   const pic = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });

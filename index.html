@@ -3,27 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>メール判定.com — 怪しいメールのチェック（参考情報）</title>
+<title>詐欺メール判定.com — 怪しいメールのチェック（参考情報）</title>
 <meta name="description" content="メールの文字情報から、詐欺によく見られる特徴を指摘します。差出人がメールアドレスのメールだけが対象です。参考情報であり、安全性を保証するものではありません。">
-<meta property="og:title" content="メール判定.com">
+<meta property="og:title" content="詐欺メール判定.com">
 <meta property="og:description" content="メール本文を貼ると、怪しいポイントを指摘します。参考情報です。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='6' y='14' width='52' height='36' rx='4' fill='none' stroke='%23222' stroke-width='4'/%3E%3Cpath d='M8 17l24 18 24-18' fill='none' stroke='%23222' stroke-width='4'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="css/app.css">
 </head>
-<body>
-<main>
-  <h1>メール判定.com</h1>
-  <p class="lead">メール本文を貼ると、詐欺によく見られる怪しいポイントを指摘します。このサービスは、差出人がメールアドレスのメールだけを判定します。参考情報です。</p>
-  <p class="privacy">本文（本文中のURLを含む）は、お使いの端末の中だけで判定します。本文に含まれるリンクだけを文字列として調べ、開きません。詳しくは<a href="#privacy_detail">判定ボタンの上</a>にあります。</p>
+<body class="home">
+<a class="skip-link" href="#content">本文へ</a>
+<header class="site-header">
+  <div class="site-header-inner">
+    <h1 class="site-title"><a class="site-wordmark" href="index.html">詐欺メール判定<span class="site-tld">.com</span></a></h1>
+  </div>
+</header>
+<main class="site-main" id="content">
+  <div class="mail-hantei">
+  <div class="intro-block">
+    <p class="lead">メール本文を貼ると、詐欺によく見られる怪しいポイントを指摘します。このサービスは、差出人がメールアドレスのメールだけを判定します。参考情報です。</p>
+    <p class="privacy">本文（本文中のURLを含む）は、お使いの端末の中だけで判定します。本文に含まれるリンクだけを文字列として調べ、開きません。詳しくは<a href="#privacy_detail">判定ボタンの上</a>にあります。</p>
+  </div>
 
-  <form id="form" novalidate autocomplete="off">
+  <form id="form" novalidate autocomplete="off" method="post">
     <!-- ここはメールに記載された名前の欄です。判定のその場だけ使い、保存・公開しません。 -->
     <label class="field" for="display_name" id="dn_label">メールに記載された名前 <span class="opt">（任意）</span></label>
     <span class="hint" id="dn_hint">メールアプリに表示されている名前（例: ヤマト運輸）。判定のためだけに使い、保存や公開はしません。</span>
     <input id="display_name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200">
 
     <label class="field" for="subject" id="subject_label">メールの件名 <span class="opt">（任意）</span></label>
-    <p class="hint" id="subject_warn">件名、名前、アドレス、本文に、氏名、住所、電話番号、カード番号、パスワード、認証コード、注文番号などの個人情報を入れないでください。このサイトの判定に、それらの情報は不要です。</p>
+    <p class="field-warn" id="subject_warn">件名、名前、アドレス、本文に、氏名、住所、電話番号、カード番号、パスワード、認証コード、注文番号などの個人情報を入れないでください。このサイトの判定に、それらの情報は不要です。</p>
     <input id="subject" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="300">
 
     <label class="field" for="from_email" id="from_label">メールに記載されたアドレス</label>
@@ -31,15 +39,19 @@
     <input id="from_email" type="text" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="320">
     <details class="from-help-details">
       <summary>差出人アドレスの確認方法</summary>
-      <span class="hint" id="from_hint">例: notice@example.com</span>
-      <p class="from-help" id="from_help">メール上部の差出人名の横にある詳細表示（▼など）を開き、『差出人／From』の@を含むアドレス全体を確認してください。アプリにより表示方法が異なります。返信画面や本文のリンクを開く必要はありません。見つからなければ無理に操作しないでください。</p>
-      <p class="from-note" id="from_note">表示名やFromも偽装されるため、本物とは確認できません。</p>
+      <div class="from-help-body">
+        <span class="hint" id="from_hint">例: notice@example.com</span>
+        <p class="from-help" id="from_help">メール上部の差出人名の横にある詳細表示（▼など）を開き、『差出人／From』の@を含むアドレス全体を確認してください。アプリにより表示方法が異なります。返信画面や本文のリンクを開く必要はありません。見つからなければ無理に操作しないでください。</p>
+        <p class="from-note" id="from_note">表示名やFromも偽装されるため、本物とは確認できません。</p>
+      </div>
     </details>
 
     <label class="field" for="body" id="body_label">メール本文</label>
-    <span class="hint">本文をそのまま貼り付けてください。</span>
-    <p class="hint" id="body_privacy">貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。</p>
-    <p class="hint" id="body_links">本文に含まれるリンクだけを文字列として調べ、開きません。</p>
+    <div class="body-notes">
+      <span class="hint">本文をそのまま貼り付けてください。</span>
+      <p class="hint" id="body_privacy">貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。</p>
+      <p class="hint" id="body_links">本文に含まれるリンクだけを文字列として調べ、開きません。</p>
+    </div>
     <textarea id="body" maxlength="50000" autocomplete="off" spellcheck="false"></textarea>
 
 
@@ -76,6 +88,7 @@
       </div>
     </fieldset>
 
+    <div class="after-form-notes">
     <div class="privacy-detail" id="privacy_detail">
       <p>本文（本文中のURLを含む）は、お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。</p>
       <p>ほかのサイトと同じように、ページを開いた時刻やブラウザの種類などの一般的なアクセス記録は配信会社に残りますが、入力した内容は含まれません。</p>
@@ -83,6 +96,8 @@
       <p id="privacy_plan">判定に入力する情報は、メールに記載された名前、件名、メールアドレス、本文、および選択式の送信元ジャンルとメールの内容です。送信元の名前は、判定のためにお使いの端末の中だけで使い、サーバーに送ったり、保存・公開したりしません。今後始める統計機能で利用する予定なのは、差出人のドメイン、選択したジャンルと内容、本文内のリンク先ドメインです。メールアドレス、件名、ドメインは現在どこにも集めていません。件名は、判定結果と履歴に出ることがあります。公開の一覧に名前は出しません。本文とURLは統計に使いません。</p>
     </div>
     <p id="history_pending">受付履歴の機能は準備中です。</p>
+    <p class="stat-note" id="stats_note">全利用者を対象とするドメイン別の統計は、現在提供していません。件名も、差出人のドメインも、本文内のリンク先ドメインも集めていません。公開を始めたあとの履歴や一覧に、文字として出ることがあります。</p>
+    </div>
     <p class="terms-agree" id="terms_agree">判定すると、<a class="terms-public" href="terms.html" hidden>利用規約</a><span class="terms-fallback">利用規約</span>に同意したものとみなします。</p>
     <button type="submit" id="check">判定する</button>
     <button type="button" id="clear">入力を消す</button>
@@ -102,15 +117,15 @@
       <p id="history_submit_result"></p>
       <p><a class="terms-public" href="terms.html" hidden>利用規約（下書き）</a></p>
     </section>
-    <p class="stat-note" id="stats_note">全利用者を対象とするドメイン別の統計は、現在提供していません。件名も、差出人のドメインも、本文内のリンク先ドメインも集めていません。公開を始めたあとの履歴や一覧に、文字として出ることがあります。</p>
   </form>
 
   <section id="result" aria-live="polite"></section>
+  </div>
 
   <footer>
     <p>これは参考情報です。最終的な判断はご自身でお願いします。</p>
     <p>本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。</p>
-    <p>表示 v0.10.2／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p>表示 v0.10.3／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／ブラウザ内のみで判定／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a class="terms-public" href="terms.html" hidden>利用規約（下書き）</a> <a href="#privacy_detail">プライバシーに関する説明</a></p>
     <p class="guide-nav"><a href="guides/index.html">解説</a> ／ <a href="guides/how-to-spot.html">見分け方</a> ／ <a href="guides/if-you-opened.html">開いてしまったら</a> ／ <a href="guides/types.html">種類</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
