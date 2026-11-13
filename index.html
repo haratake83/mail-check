@@ -58,31 +58,34 @@
 
     <!-- ここは送信元のジャンルの欄です -->
     <fieldset class="choice-set" id="genre_set">
-      <legend id="genre_legend">送信元のジャンル <span class="opt">（ひとつだけ）</span></legend>
+      <legend id="genre_legend">送信元のジャンル</legend>
+      <p class="choice-help">該当する項目にチェックを入れてください</p>
       <div class="choice-group context-group">
         <label class="context-option"><input type="radio" name="sender_genre" value="delivery"> 宅配便・配送業者</label>
         <label class="context-option"><input type="radio" name="sender_genre" value="bank"> 銀行・カード会社</label>
         <label class="context-option"><input type="radio" name="sender_genre" value="ec"> 通販サイト</label>
         <label class="context-option"><input type="radio" name="sender_genre" value="carrier"> 通信キャリア</label>
         <label class="context-option"><input type="radio" name="sender_genre" value="gov"> 官公庁・税務署</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="other"> その他・不明</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="other" checked> その他・不明</label>
       </div>
     </fieldset>
 
     <!-- ここはメールの内容の欄です -->
     <fieldset class="choice-set" id="content_set">
-      <legend id="content_legend">メールの内容 <span class="opt">（ひとつだけ）</span></legend>
+      <legend id="content_legend">メールの内容</legend>
+      <p class="choice-help">該当する項目にチェックを入れてください</p>
       <div class="choice-group context-group">
         <label class="context-option"><input type="radio" name="mail_content" value="undelivered"> 不在通知・再配達</label>
         <label class="context-option"><input type="radio" name="mail_content" value="lock"> アカウント停止・ロック</label>
         <label class="context-option"><input type="radio" name="mail_content" value="unpaid"> 未払い料金の請求</label>
         <label class="context-option"><input type="radio" name="mail_content" value="prize"> 当選・給付金の案内</label>
-        <label class="context-option"><input type="radio" name="mail_content" value="other"> その他・不明</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="other" checked> その他・不明</label>
       </div>
     </fieldset>
 
     <fieldset>
       <legend id="ctx_q">このメールに心当たりはありますか？</legend>
+      <p class="choice-help">該当する項目にチェックを入れてください</p>
       <div class="context-group">
         <label class="context-option"><input type="radio" name="context_answer" value="yes"> はい（心当たりがある）</label>
         <label class="context-option"><input type="radio" name="context_answer" value="no"> いいえ（心当たりがない）</label>

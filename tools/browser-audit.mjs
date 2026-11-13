@@ -274,7 +274,7 @@ const look = await evaluate(`(() => {
 })()`);
 check("header logo is 詐欺メールチェック.com inside the page", look.word === "詐欺メールチェック.com" && look.logoSrc === "img/sagi-mail-check-logo.png" && look.logoW === 1552 && look.logoH === 369 && look.title.startsWith("詐欺メール判定.com") && look.og === "詐欺メール判定.com", JSON.stringify(look));
 check("header logo has no green frame", look.frameWidth === "0px" && /0,\s*0,\s*0,\s*0/.test(look.fill), JSON.stringify(look));
-check("judge button is white text-black with a 2px navy frame", /255,\s*255,\s*255/.test(look.btnBg) && /17,\s*17,\s*17/.test(look.btnColor) && /34,\s*76,\s*158/.test(look.btnBorder) && look.btnBorderWidth === "2px", JSON.stringify(look));
+check("judge button is white on navy with a 2px logo-green frame", /34,\s*76,\s*158/.test(look.btnBg) && /255,\s*255,\s*255/.test(look.btnColor) && /46,\s*172,\s*111/.test(look.btnBorder) && look.btnBorderWidth === "2px", JSON.stringify(look));
 check("explanations are white with a navy frame and cautions are sky blue", /255,\s*255,\s*255/.test(look.introBg) && /230,\s*244,\s*251/.test(look.warnBg) && look.warnBorder === "1px" && look.nameBg === look.warnBg && look.bodyBg === look.warnBg, JSON.stringify(look));
 check("footer has no navy frame and the disclaimer uses the sky hint box", look.footBorderWidth === "0px" && /230,\s*244,\s*251/.test(look.discBg) && look.discBg === look.bodyBg && look.discBorder === "1px", JSON.stringify(look));
 await setViewport(390, 844, true);

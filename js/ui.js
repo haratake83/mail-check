@@ -44,7 +44,10 @@
     generation += 1;
     if (window.MH_DOMAIN_AGE) window.MH_DOMAIN_AGE.cancel();
     ["display_name", "subject", "from_email", "body"].forEach(function (id) { if ($(id)) $(id).value = ""; });
-    document.querySelectorAll('input[name="sender_genre"], input[name="mail_content"]').forEach(function (c) { c.checked = false; });
+    ["sender_genre", "mail_content"].forEach(function (name) {
+      var picked = document.querySelector('input[name="' + name + '"][value="other"]');
+      if (picked) picked.checked = true;
+    });
     var unk = document.querySelector('input[name="context_answer"][value="unknown"]');
     if (unk) unk.checked = true;
     judgmentKey = null;

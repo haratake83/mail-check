@@ -7,6 +7,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 /* Design tokens
    --navy       #224C9E  ヘッダーロゴ「詐欺メールチェック」の字の実色。枠と下端の案内リンク。
+   --logo-green #2EAC6F  ロゴの虫眼鏡と「.com」の実色。判定ボタンの枠。
    --frame      3px solid var(--navy)  旧い肌色ブロックの枠。
    --sky        #E6F4FB  旧い黄色背景の代わりの薄い水色。
    --sky-line   #5BA4C9  その枠。水色に合わせた青。
@@ -16,11 +17,13 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
    #111 on #FFF     18.88:1
    #111 on #E6F4FB  16.81:1
    #224C9E on #FFF   8.09:1（案内リンク）
+   #FFF on #224C9E   8.09:1（判定ボタンの白文字）
 */
 :root {
   --ink: #111111;
   --paper: #ffffff;
   --navy: #224C9E;
+  --logo-green: #2EAC6F;
   --frame: 3px solid var(--navy);
   --sky: #E6F4FB;
   --sky-line: #5BA4C9;
@@ -216,6 +219,7 @@ p.lead { margin: 0 0 0.7em; }
 
 fieldset { border: none; margin: 0; padding: 0; }
 legend, label.field { display: block; font-weight: 700; font-size: 1rem; color: var(--ink); margin: 20px 0 6px; }
+.choice-help { margin: 0 0 8px; font-weight: 400; font-size: var(--body-text); color: var(--ink); }
 .req { color: #b00000; font-weight: 700; font-size: 0.85rem; margin-left: 4px; }
 .opt { font-weight: 400; font-size: var(--body-text); color: var(--ink); }
 input[type="text"], input[type="email"], textarea, select {
@@ -245,7 +249,7 @@ textarea { height: 200px; resize: vertical; min-height: 120px; }
 .terms-agree { margin: 22px 0 10px; line-height: 1.7; color: var(--ink); }
 .terms-agree a { color: var(--ink); font-weight: 700; font-size: 1rem; }
 
-/* Buttons: black text. 判定する uses the navy frame. */
+/* 判定する is white on navy, with the logo green frame. 入力を消す stays black on white. */
 button#check,
 button#clear,
 button#history_query,
@@ -254,8 +258,8 @@ button#history_submit {
   border-radius: 6px; cursor: pointer; width: 100%; color: var(--ink); background: var(--paper);
   touch-action: manipulation;
 }
-button#check { margin-top: 0; border: 2px solid var(--navy); font-weight: 700; }
-button#check:hover, button#check:active { background: #fff; }
+button#check { margin-top: 0; border: 2px solid var(--logo-green); background: var(--navy); color: #fff; font-weight: 700; }
+button#check:hover, button#check:active { background: #183672; color: #fff; }
 button#clear, button#history_query, button#history_submit { border: 1px solid var(--ink); }
 button#clear:hover, button#history_query:hover, button#history_submit:hover { background: #fff; }
 button:disabled { opacity: 0.45; cursor: default; }
