@@ -56,7 +56,18 @@ await evaluate(`document.getElementById("display_name").value = ${JSON.stringify
 await evaluate(`new Promise((resolve) => { const t = setInterval(() => { if (document.querySelector("#result.show")) { clearInterval(t); resolve(true); } }, 20); })`);
 await evaluate(`new Promise((r) => setTimeout(r, 400))`);
 const leaked = net.filter((r) => (r.url + "\n" + r.postData).includes(marker));
+function domainPostOnly(r) {
+  try {
+    const u = new URL(r.url);
+    if (!u.pathname.endsWith("/api/domain-created") && !u.pathname.endsWith("/api/weekly-rank")) return false;
+    const data = JSON.parse(r.postData || "");
+    const keys = Object.keys(data);
+    const allowed = { domain: 1, genre: 1, content: 1 };
+    return keys.length >= 1 && keys.every((key) => allowed[key]) && typeof data.domain === "string" && !data.domain.includes("@") && !String(r.postData).includes(marker);
+  } catch (e) { return false; }
+}
 const methods = [...new Set(net.map((r) => r.method))];
+const unexpected = net.filter((r) => r.method !== "GET" && !domainPostOnly(r));
 const hosts = [...new Set(net.map((r) => { try { return new URL(r.url).host; } catch (e) { return r.url; } }))];
 const report = {
   origin,
@@ -67,9 +78,10 @@ const report = {
   request_count: net.length,
   requests_after_typing: net.length - before,
   only_get: net.every((r) => r.method === "GET"),
+  unexpected: unexpected.map((r) => ({ method: r.method, url: r.url.split("?")[0] })),
   requests: net.map((r) => ({ method: r.method, url: r.url.split("?")[0] }))
 };
 writeFileSync(path.join(outDir, "production-get-audit.json"), JSON.stringify(report, null, 2));
-console.log(JSON.stringify({ marker_in_any_request: report.marker_in_any_request, only_get: report.only_get, methods, hosts, request_count: report.request_count, requests_after_typing: report.requests_after_typing }, null, 2));
+console.log(JSON.stringify({ marker_in_any_request: report.marker_in_any_request, only_get: report.only_get, unexpected: report.unexpected.length, methods, hosts, request_count: report.request_count, requests_after_typing: report.requests_after_typing }, null, 2));
 ws.close(); chrome.kill("SIGTERM");
-process.exit(report.marker_in_any_request || !report.only_get ? 1 : 0);
+process.exit(report.marker_in_any_request || unexpected.length ? 1 : 0);

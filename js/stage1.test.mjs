@@ -243,11 +243,11 @@ check("from label and warning are present", html.includes("メールに記載さ
 check("from help is present", html.includes("『差出人／From』") && html.includes("見つからなければ無理に操作しないでください。"));
 check("from can be spoofed is stated", html.includes("表示名やFromも偽装されるため、本物とは確認できません。"));
 check("plain privacy wording", html.includes("お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。") && html.includes("入力した内容は含まれません。") && html.includes("画面の入力は「入力を消す」ボタンですぐ消せます。") && html.includes("ページを閉じてください。"));
-check("planned stats sentence follows the privacy explanation", html.indexOf("ページを閉じてください。") < html.indexOf("ドメインは現在どこにも集めていません") && html.includes("本文とURLは統計に使いません。") && html.includes("本文内のリンク先ドメイン"));
+check("planned stats sentence follows the privacy explanation", html.indexOf("ページを閉じてください。") < html.indexOf("週間ランキングのために送るのは") && html.includes("本文とURLは統計に使いません。") && html.includes("本文内のリンク先ドメインは送りません"));
 check("judging shows the terms consent above the button", html.indexOf("判定すると、") < html.indexOf('id="check"') && html.includes("利用規約</span>に同意したものとみなします。") && html.includes('class="terms-public" href="terms.html" hidden'));
 check("body note sits under the paste hint", html.indexOf("本文をそのまま貼り付けてください。") < html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") && html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") < html.indexOf('id="body"'));
 check("old privacy jargon is gone", !html.includes("送り出す処理を含みません") && !html.includes("完全消去を保証するものではありません") && !html.includes("未監査です") && !html.includes("完全削除"));
-check("stats unavailable sentence", html.includes("全利用者を対象とするドメイン別の統計は、現在提供していません。"));
+check("stats unavailable sentence", html.includes("ページ下部の週間ランキングは、直近7日間に10回以上判定された") && html.includes("詐欺であることも、安全であることも意味しません。") && !html.includes("全利用者を対象とするドメイン別の統計は、現在提供していません。"));
 check("stats options A/B/C are not implemented in the page", !html.includes("この端末のみ") && !html.includes("この端末での判定回数") && !ui.includes("この端末での判定回数"));
 check("page does not claim complete deletion", !html.includes("完全削除") && !html.includes("名前/アドレスだけ") && !html.includes("匿名化済み"));
 check("ui does not linkify result urls", !/createElement\(\s*"a"/.test(ui) && ui.includes("textContent"));
@@ -286,7 +286,7 @@ check("subject is drawn with textContent", ui.includes('el("p", "summary-subject
 check("front page wordmark is the approved site name", html.includes('class="site-wordmark"') && html.includes('詐欺メール判定<span class="site-tld">.com</span>') && html.includes('property="og:title" content="詐欺メール判定.com"') && html.includes("<title>詐欺メール判定.com"));
 check("approved explanation wrappers are present", html.includes('class="intro-block"') && html.includes('class="field-warn" id="subject_warn"') && html.includes('class="from-help-body"') && html.includes('class="body-notes"') && html.includes('class="after-form-notes"') && html.indexOf('id="privacy_detail"') < html.indexOf('id="history_pending"') && html.indexOf('id="history_pending"') < html.indexOf('id="stats_note"') && html.indexOf('id="stats_note"') < html.indexOf('id="check"'));
 check("display_name is not a named submit field", !/<input\b[^>]*\bid="display_name"[^>]*\bname=/.test(html) && !/<input\b[^>]*\bname="display_name"/.test(html));
-check("visible version is v0.10.3 and the protocol stays v0.10", html.includes("表示 v0.10.3") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.2"));
+check("visible version is v0.10.5 and the protocol stays v0.10", html.includes("表示 v0.10.5") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.4"));
 check("stylesheet uses the approved tokens and a self-hosted wordmark font", css.includes("--green: #2F6B4F") && css.includes("--beige: #F6EDE3") && css.includes("--warn-bg: #F8E7C1") && css.includes("--warn-line: #c9a227") && css.includes("--paper: #ffffff") && css.includes("border: 2px solid var(--green)") && css.includes("border-top: 2px solid var(--green)") && css.includes('url("../fonts/zenkaku-jp-900.woff2")') && css.includes('url("../fonts/zenkaku-latin-500.woff2")') && !css.includes("fonts.googleapis.com") && !css.includes("fonts.gstatic.com") && !css.includes("background:#222") && !css.includes("background: #222"));
 check("wordmark font files and the OFL notice are in the repo", ["fonts/zenkaku-latin-500.woff2", "fonts/zenkaku-latin-900.woff2", "fonts/zenkaku-jp-500.woff2", "fonts/zenkaku-jp-900.woff2", "fonts/OFL-ZenKakuGothicNew.txt"].every(function (rel) { const p = new URL("../" + rel, import.meta.url); return fs.existsSync(p) && fs.statSync(p).size > 0; }));
 

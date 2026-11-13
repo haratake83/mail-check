@@ -1034,6 +1034,15 @@
     return list.map(function (x) { return T[x] || x; });
   }
 
+  // 取得日の照会に使う登録ドメインだけを返す。点数・4区分には使わない。
+  function senderRegistrable(raw) {
+    var sender = parseEmail(raw || "");
+    if (!sender || !sender.host || sender.host.indexOf("@") >= 0) return "";
+    var reg = registrable(sender.host);
+    if (!reg || reg.indexOf("@") >= 0 || reg.indexOf("/") >= 0 || reg.indexOf("\\") >= 0) return "";
+    return reg;
+  }
+
   g.MH_judge = judge;
-  g.MH_util = { esc: esc, maskSecrets: maskSecrets, registrable: registrable, lexical: lexical };
+  g.MH_util = { esc: esc, maskSecrets: maskSecrets, registrable: registrable, lexical: lexical, senderRegistrable: senderRegistrable };
 })(typeof globalThis !== "undefined" ? globalThis : this);

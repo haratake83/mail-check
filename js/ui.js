@@ -42,6 +42,7 @@
 
   function clearAll() {
     generation += 1;
+    if (window.MH_DOMAIN_AGE) window.MH_DOMAIN_AGE.cancel();
     ["display_name", "subject", "from_email", "body"].forEach(function (id) { if ($(id)) $(id).value = ""; });
     document.querySelectorAll('input[name="sender_genre"], input[name="mail_content"]').forEach(function (c) { c.checked = false; });
     var unk = document.querySelector('input[name="context_answer"][value="unknown"]');
@@ -81,6 +82,14 @@
     if (gen !== generation) return;
     sessionKey();
     render(r);
+    if (window.MH_DOMAIN_AGE) {
+      var ageGen = gen;
+      window.MH_DOMAIN_AGE.attach($("from_email").value, function () { return ageGen === generation; });
+    }
+    if (window.MH_WEEKLY && window.MH_DOMAIN_AGE) {
+      var rankPlan = window.MH_DOMAIN_AGE.planLookup($("from_email").value);
+      if (rankPlan) window.MH_WEEKLY.record({ domain: rankPlan.body.domain, genre: radio("sender_genre"), content: radio("mail_content") });
+    }
   });
 
   function renderFailure() {
