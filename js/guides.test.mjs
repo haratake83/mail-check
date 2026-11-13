@@ -43,7 +43,7 @@ check("T-O1 quick list", contacts.indexOf("早見") < contacts.indexOf("<table")
 check("T-O2 chatbot is not universal", contacts.includes("万能ではありません"));
 check("T-O3 no copied IPA mailbox", !allGuides.includes("anshin@ipa.go.jp") && contacts.includes("antiphishing.jp"));
 check("T-NAV guide links and hidden terms", index.includes("guides/how-to-spot.html") && index.includes('class="terms-public" href="terms.html" hidden') && flags.includes("FEATURE_TERMS_PUBLIC: false") && flags.includes("FEATURE_LIST_PUBLIC: false"));
-const linkNames = ["詐欺メールの見分け方・特徴", "怪しいメールのリンクを開いてしまったら", "怪しいメールの種類一覧", "フィッシングメールとは？", "マルウェアメールとは？", "架空請求メールとは？", "スパムメールとは？"];
+const linkNames = ["プライバシーポリシー", "詐欺メールの見分け方・特徴", "怪しいメールのリンクを開いてしまったら", "怪しいメールの種類一覧", "フィッシングメールとは？", "マルウェアメールとは？", "架空請求メールとは？", "スパムメールとは？"];
 function footerNav(html) {
   const start = html.indexOf('class="guide-links"');
   const end = html.indexOf("</nav>", start);
@@ -52,6 +52,6 @@ function footerNav(html) {
 const indexNav = footerNav(index);
 const spotNav = footerNav(read("guides/how-to-spot.html"));
 check("T-NAV full guide names stack at the bottom without 相談窓口", linkNames.every(function (name, i) { return indexNav.includes(name) && (i === 0 || indexNav.indexOf(linkNames[i - 1]) < indexNav.indexOf(name)); }) && !indexNav.includes("相談窓口") && linkNames.every(function (name) { return spotNav.includes(name); }) && !spotNav.includes("相談窓口") && index.indexOf('class="guide-links"') > index.indexOf("表示 v0.10.5"));
-check("T-R19 history subject can be masked", ui.includes("function maskHistorySubject") && index.includes("共用の端末では"));
+check("T-R19 history subject can be masked", ui.includes("function maskHistorySubject") && read("privacy.html").includes("共用の端末では"));
 console.log("\n" + pass + " passed, " + fail + " failed.");
 if (fail) { console.log(failures.join("\n")); process.exit(1); }
