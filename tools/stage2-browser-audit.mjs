@@ -86,12 +86,13 @@ check("history controls stay hidden", (await evaluate(`document.getElementById("
 check("history pending line is shown", (await evaluate(`document.getElementById("history_pending").innerText`)).includes("準備中"));
 check("list link stays hidden", (await evaluate(`document.getElementById("list_link").hidden`)) === true);
 check("name label is the approved wording", (await evaluate(`document.getElementById("dn_label").textContent`)).includes("メールに記載された名前"));
+check("genre and content choices are present", (await evaluate(`document.getElementById("genre_legend").textContent + document.getElementById("content_legend").textContent`)).includes("送信元のジャンル") && (await evaluate(`document.getElementById("content_legend").textContent`)).includes("メールの内容"));
 check("address label is the approved wording", (await evaluate(`document.getElementById("from_label").textContent`)).includes("メールに記載されたアドレス"));
 check("consent starts off", (await evaluate(`document.getElementById("history_consent").checked`)) === false);
 await shot("stage2_history_desktop.png");
 const afterLoad = net.length;
 await evaluate(`document.getElementById("from_email").value = ${JSON.stringify(MARK)}; document.getElementById("from_email").dispatchEvent(new Event("input"));`);
-await evaluate(`document.getElementById("display_name").value = "<img src=\\"https://192.0.2.1/x.png\\">";`);
+await evaluate(`document.getElementById("subject").value = "<img src=\\"https://192.0.2.1/x.png\\">";`);
 await evaluate(`document.getElementById("body").value = "本文と認証コード998877と https://example.com/secret";`);
 const afterType = net.length;
 await evaluate(`document.getElementById("history_query").click()`);

@@ -247,7 +247,7 @@ check("planned stats sentence follows the privacy explanation", html.indexOf("�
 check("judging shows the terms consent above the button", html.indexOf("判定すると、") < html.indexOf('id="check"') && html.includes("利用規約</span>に同意したものとみなします。") && html.includes('class="terms-public" href="terms.html" hidden'));
 check("body note sits under the paste hint", html.indexOf("本文をそのまま貼り付けてください。") < html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") && html.indexOf("貼り付けた本文はこの端末の中だけで判定し、保存も送信もしません。ページを閉じると消えます。") < html.indexOf('id="body"'));
 check("old privacy jargon is gone", !html.includes("送り出す処理を含みません") && !html.includes("完全消去を保証するものではありません") && !html.includes("未監査です") && !html.includes("完全削除"));
-check("stats unavailable sentence", html.includes("全利用者を対象とする送信元名別・アドレス別の統計は、現在提供していません。"));
+check("stats unavailable sentence", html.includes("全利用者を対象とするドメイン別の統計は、現在提供していません。"));
 check("stats options A/B/C are not implemented in the page", !html.includes("この端末のみ") && !html.includes("この端末での判定回数") && !ui.includes("この端末での判定回数"));
 check("page does not claim complete deletion", !html.includes("完全削除") && !html.includes("名前/アドレスだけ") && !html.includes("匿名化済み"));
 check("ui does not linkify result urls", !/createElement\(\s*"a"/.test(ui) && ui.includes("textContent"));
@@ -267,8 +267,17 @@ check("button only mail is not treated as a pasted url and keeps a limit", butto
 const urgentButton = run("山田様、今すぐこちらのボタンを押してください。");
 check("urgent button only stays inside the four verdicts", ["strong_suspicion", "needs_review", "no_clear_signal", "insufficient"].indexOf(urgentButton.verdict) >= 0 && !(urgentButton.url_assessments || []).some((a) => a.fetched));
 check("the page does not ask people to paste a separate link", !html.includes("リンク先を貼って") && !html.includes("長押しして") && html.includes("本文（本文中のURLを含む）"));
-check("subject field sits under the name", html.indexOf('id="display_name"') < html.indexOf('for="subject"') && html.indexOf('id="subject_warn"') < html.indexOf('id="subject"') && html.indexOf('id="subject"') < html.indexOf('id="from_email"') && html.includes("このサイトの判定に、それらの情報は不要です"));
+check("name field is for judgment only and choices are present", html.includes('id="display_name"') && html.includes("メールに記載された名前") && html.includes("保存や公開はしません") && html.includes('id="genre_legend"') && html.includes("送信元のジャンル") && html.includes("ひとつだけ") && html.includes('type="radio" name="sender_genre"') && !html.includes('type="checkbox" name="sender_genre"') && html.includes('id="content_legend"') && html.includes("メールの内容") && html.includes('type="radio" name="mail_content"') && !html.includes('type="checkbox" name="mail_content"') && html.includes("宅配便・配送業者") && html.includes("当選・給付金の案内") && html.indexOf('id="display_name"') < html.indexOf('for="subject"') && html.indexOf('id="subject_warn"') < html.indexOf('id="subject"') && html.indexOf('id="subject"') < html.indexOf('id="from_email"') && html.includes("このサイトの判定に、それらの情報は不要です"));
+const formOrder = ['id="display_name"', 'id="subject"', 'id="from_email"', 'id="body"', 'id="genre_set"', 'id="content_set"', 'id="ctx_q"'];
+check("form order is name, subject, address, body, genre, content, then context", formOrder.every(function (marker, i) { return html.indexOf(marker) >= 0 && (i === 0 || html.indexOf(formOrder[i - 1]) < html.indexOf(marker)); }));
+check("genre and content option values match", ["delivery", "bank", "ec", "carrier", "gov", "other"].every(function (v) { return html.includes('name="sender_genre" value="' + v + '"'); }) && ["undelivered", "lock", "unpaid", "prize"].every(function (v) { return html.includes('name="mail_content" value="' + v + '"'); }) && html.includes("銀行・カード会社") && html.includes("通販サイト") && html.includes("通信キャリア") && html.includes("官公庁・税務署") && html.includes("その他・不明") && html.includes("不在通知・再配達") && html.includes("アカウント停止・ロック") && html.includes("未払い料金の請求"));
+check("field comments stay in the form", html.includes("<!-- ここはメールに記載された名前の欄です") && html.includes("<!-- ここは送信元のジャンルの欄です -->") && html.includes("<!-- ここはメールの内容の欄です -->"));
+const judgeCall = ui.slice(ui.indexOf("window.MH_judge("), ui.indexOf("window.MH_judge(") + 500);
+check("name goes to the judge and choices do not", judgeCall.includes("display_name") && !judgeCall.includes("sender_genre") && !judgeCall.includes("mail_content") && !judgeCall.includes("genres") && ui.includes('genres: checkedValues("sender_genre")') && ui.includes('tactics: checkedValues("mail_content")') && !/buildSubmitPayload\(\{[^}]*display_name/.test(ui));
 const benign = "山田様、本日の連絡です。";
+const named = run(benign, { display_name: "ヤマト運輸" });
+const namedWithChoices = run(benign, { display_name: "ヤマト運輸", sender_genre: "delivery", mail_content: "prize", genres: ["gov"], tactics: ["unpaid"] });
+check("genre and content selections do not raise the danger score", named.danger_level === namedWithChoices.danger_level && named.verdict === namedWithChoices.verdict && JSON.stringify(named.evidence) === JSON.stringify(namedWithChoices.evidence));
 const withoutSubject = run(benign);
 const withSubject = run(benign, { subject: "ギフトカードの番号を送ってください。<img src=x>" });
 check("subject is display only and does not change the verdict", withoutSubject.verdict === withSubject.verdict && withoutSubject.danger_level === withSubject.danger_level && withSubject.subject_used_in_score === false && withSubject.subject_display === "ギフトカードの番号を送ってください。<img src=x>");

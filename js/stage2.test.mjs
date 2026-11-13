@@ -35,8 +35,8 @@ check("submit key is not Math.random", !src.includes("Math.random") && src.inclu
 check("submit needs a separate consent", S.buildSubmitPayload({ address: "a@example.com", consent: false }).reason === "consent_required");
 const sub = S.buildSubmitPayload({ address: "a@example.com", display_name: "<b>名</b>", consent: true, otp: "998877" });
 check("submit rejects otp", sub.ok === false && !JSON.stringify(sub).includes("998877"));
-const subok = S.buildSubmitPayload({ address: "a@example.com", display_name: "架空窓口", consent: true });
-check("submit payload has name and address only", subok.ok && subok.payload.display_name === "架空窓口" && subok.payload.flow === "submit" && !("verdict" in subok.payload));
+const subok = S.buildSubmitPayload({ address: "a@example.com", display_name: "架空窓口", genres: ["gov"], tactics: ["unpaid"], consent: true });
+check("submit payload has address and choices, not a name", subok.ok && !("display_name" in subok.payload) && subok.payload.genres[0] === "gov" && subok.payload.tactics[0] === "unpaid" && subok.payload.flow === "submit" && !("verdict" in subok.payload));
 
 const adapter = S.createDisabledAdapter();
 let fetched = 0;
