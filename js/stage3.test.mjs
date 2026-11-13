@@ -44,7 +44,7 @@ check("public pages do not mention an attention score", !index.includes("注意�
 check("terms draft notice and undetermined marks", terms.includes("弁護士の確認前の下書き") && terms.includes("未定") && !terms.includes("名称候補") && !terms.includes("0円とする実質的全部免責"));
 check("terms mark address statistics as planned and not started", terms.includes("週間ランキングのために送ることがあるのは") && terms.includes("本文内のリンク先ドメインは送りません") && terms.includes("安全であることも危険であることも意味しません") && terms.includes("本文とURLは統計に使いません") && !terms.includes("サーバへ送られることがあります") && !terms.includes("ドメインは現在どこにも集めていません"));
 check("terms do not invent an operator address or a yen cap", !/株式会社|東京都|〒\d/.test(terms) && !/上限として金[0-9]/.test(terms) && !terms.includes("一切の損害について責任を負いません"));
-check("terms are linked from the footer, history, and list", index.includes('href="terms.html"') && index.includes('href="#privacy_detail"') && list.includes('href="terms.html"') && list.includes("プライバシーに関する説明"));
+check("terms are linked from the footer, history, and list", index.includes('href="terms.html"') && index.includes('href="privacy.html"') && !index.includes("プライバシーに関する説明") && list.includes('href="terms.html"') && list.includes('href="privacy.html"'));
 check("forbidden absolute disclaimer is absent", !terms.includes("損害賠償の有無・金額は当社が決定します") && !terms.includes("法令に反しない限り責任を負いません"));
 
 console.log("\n" + pass + " passed, " + fail + " failed.");
