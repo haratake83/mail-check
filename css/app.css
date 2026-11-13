@@ -129,7 +129,8 @@ p.lead { margin: 0 0 0.7em; }
 .hint { display: block; font-weight: 400; margin: 2px 0 6px; color: var(--ink); background: none; padding: 0; }
 /* 名前・本文の説明は、件名・アドレスの説明（注意の水色）と同じ背景色 */
 #dn_hint,
-.body-notes {
+.body-notes,
+.choice-missing {
   background: var(--sky);
   border: 1px solid var(--sky-line);
   border-radius: 8px;
@@ -220,6 +221,8 @@ p.lead { margin: 0 0 0.7em; }
 fieldset { border: none; margin: 0; padding: 0; }
 legend, label.field { display: block; font-weight: 700; font-size: 1rem; color: var(--ink); margin: 20px 0 6px; }
 .choice-help { margin: 0 0 8px; font-weight: 400; font-size: var(--body-text); color: var(--ink); }
+.choice-missing[hidden] { display: none; }
+fieldset.choice-set:focus { outline: 2px solid var(--ink); outline-offset: 2px; }
 .req { color: #b00000; font-weight: 700; font-size: 0.85rem; margin-left: 4px; }
 .opt { font-weight: 400; font-size: var(--body-text); color: var(--ink); }
 input[type="text"], input[type="email"], textarea, select {

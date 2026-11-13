@@ -44,12 +44,8 @@
     generation += 1;
     if (window.MH_DOMAIN_AGE) window.MH_DOMAIN_AGE.cancel();
     ["display_name", "subject", "from_email", "body"].forEach(function (id) { if ($(id)) $(id).value = ""; });
-    ["sender_genre", "mail_content"].forEach(function (name) {
-      var picked = document.querySelector('input[name="' + name + '"][value="other"]');
-      if (picked) picked.checked = true;
-    });
-    var unk = document.querySelector('input[name="context_answer"][value="unknown"]');
-    if (unk) unk.checked = true;
+    document.querySelectorAll('input[name="sender_genre"], input[name="mail_content"], input[name="context_answer"]').forEach(function (c) { c.checked = false; });
+    hideChoiceErrors();
     judgmentKey = null;
     applyChannel();
     var box = $("result");
@@ -64,8 +60,90 @@
   }
   $("clear").addEventListener("click", clearAll);
 
+  var CHOICE_GROUPS = [
+    { name: "sender_genre", set: "genre_set", msg: "genre_missing" },
+    { name: "mail_content", set: "content_set", msg: "content_missing" },
+    { name: "context_answer", set: "context_set", msg: "context_missing" }
+  ];
+  var GROUP_MSG = "この項目を選んでから、もう一度「判定する」を押してください。";
+  var SUMMARY_MSG = "選んでいない項目があります。上の項目を選んでください。";
+
+  function missingChoices() {
+    return CHOICE_GROUPS.filter(function (g) { return !radio(g.name); });
+  }
+  function clearChoiceNote(g) {
+    var note = $(g.msg);
+    var set = $(g.set);
+    if (note) {
+      note.hidden = true;
+      note.textContent = "";
+      note.removeAttribute("role");
+    }
+    if (set) {
+      set.removeAttribute("aria-invalid");
+      set.removeAttribute("aria-describedby");
+    }
+  }
+  function hideChoiceErrors() {
+    CHOICE_GROUPS.forEach(clearChoiceNote);
+    var summary = $("choice_summary");
+    var button = $("check");
+    if (summary) {
+      summary.hidden = true;
+      summary.textContent = "";
+      summary.removeAttribute("role");
+    }
+    if (button) button.removeAttribute("aria-describedby");
+  }
+  function showChoiceErrors(missing) {
+    var missingNames = {};
+    missing.forEach(function (g) { missingNames[g.name] = true; });
+    CHOICE_GROUPS.forEach(function (g) {
+      if (!missingNames[g.name]) { clearChoiceNote(g); return; }
+      var note = $(g.msg);
+      var set = $(g.set);
+      if (note) {
+        note.hidden = false;
+        note.textContent = "";
+        note.textContent = GROUP_MSG;
+        note.setAttribute("role", "alert");
+      }
+      if (set) {
+        set.setAttribute("aria-invalid", "true");
+        set.setAttribute("aria-describedby", g.msg);
+      }
+    });
+    var summary = $("choice_summary");
+    if (summary) {
+      summary.hidden = false;
+      summary.textContent = "";
+      summary.textContent = SUMMARY_MSG;
+      summary.setAttribute("role", "alert");
+    }
+    if ($("check")) $("check").setAttribute("aria-describedby", "choice_summary");
+    var first = $(missing[0].set);
+    if (first) {
+      first.scrollIntoView({ block: "start" });
+      first.focus();
+    }
+  }
+  CHOICE_GROUPS.forEach(function (g) {
+    document.querySelectorAll('input[name="' + g.name + '"]').forEach(function (input) {
+      input.addEventListener("change", function () {
+        if (radio(g.name)) clearChoiceNote(g);
+        if (!missingChoices().length) hideChoiceErrors();
+      });
+    });
+  });
+
   $("form").addEventListener("submit", function (ev) {
     ev.preventDefault();
+    var missing = missingChoices();
+    if (missing.length) {
+      showChoiceErrors(missing);
+      return;
+    }
+    hideChoiceErrors();
     var gen = ++generation;
     var r;
     try {
