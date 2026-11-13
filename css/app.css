@@ -328,8 +328,8 @@ details.more summary { cursor: pointer; color: var(--ink); min-height: 32px; }
 .skip-link:focus { left: 8px; }
 
 .site-header {
-  background: var(--paper);
-  border-bottom: 2px solid var(--green);
+  background: #fff;
+  border: 0;
 }
 .site-header-inner {
   max-width: 680px;
@@ -341,25 +341,17 @@ details.more summary { cursor: pointer; color: var(--ink); min-height: 32px; }
   gap: 12px;
 }
 .site-title { margin: 0; text-align: center; }
-/* Header logo sits in the same white field and green double frame. */
 .site-wordmark {
   display: block;
   width: 100%;
   box-sizing: border-box;
   text-decoration: none;
   line-height: 0;
-  background:
-    linear-gradient(var(--green), var(--green)) 0 0 / 100% 6px no-repeat,
-    linear-gradient(var(--green), var(--green)) 0 100% / 100% 6px no-repeat,
-    #fff;
-  border: 1px solid var(--green);
-  border-radius: 3px;
-  box-shadow:
-    inset 0 6px 0 0 var(--green),
-    inset 0 -6px 0 0 var(--green),
-    inset 0 0 0 8px #fff,
-    inset 0 0 0 9px var(--green);
-  padding: 22px 20px 20px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
 }
 .site-wordmark img {
   display: block;
@@ -420,7 +412,6 @@ body.page-child-of-guides .page-title,
 @media (max-width: 480px) {
   .site-main { margin: 20px auto; padding: 0 14px; }
   .site-header-inner { padding: 14px 14px 12px; }
-  .site-wordmark { padding: 18px 14px 16px; }
 
 }
 
