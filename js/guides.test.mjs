@@ -43,7 +43,7 @@ check("T-O1 quick list", contacts.indexOf("早見") < contacts.indexOf("<table")
 check("T-O2 chatbot is not universal", contacts.includes("万能ではありません"));
 check("T-O3 no copied IPA mailbox", !allGuides.includes("anshin@ipa.go.jp") && contacts.includes("antiphishing.jp"));
 check("T-NAV guide links and hidden terms", index.includes("guides/how-to-spot.html") && index.includes('class="terms-public" href="terms.html" hidden') && flags.includes("FEATURE_TERMS_PUBLIC: false") && flags.includes("FEATURE_LIST_PUBLIC: false"));
-const linkNames = ["プライバシーポリシー", "詐欺メールの見分け方・特徴", "怪しいメールのリンクを開いてしまったら", "怪しいメールの種類一覧", "フィッシングメールとは？", "マルウェアメールとは？", "架空請求メールとは？", "スパムメールとは？"];
+const linkNames = ["詐欺メールチェック.comとは？", "プライバシーポリシー", "詐欺メールの見分け方・特徴", "怪しいメールのリンクを開いてしまったら", "怪しいメールの種類一覧", "フィッシングメールとは？", "マルウェアメールとは？", "架空請求メールとは？", "スパムメールとは？"];
 function footerNav(html) {
   const start = html.indexOf('class="guide-links"');
   const end = html.indexOf("</nav>", start);
