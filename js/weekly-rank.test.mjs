@@ -52,6 +52,12 @@ const domainOnly = judgmentEvents({ domain: "mail.example.com" }, NOW);
 check("unselected genre and content are not counted", domainOnly && domainOnly.length === 1 && domainOnly[0].key === "example.com");
 check("unknown genre is rejected", judgmentEvents({ domain: "example.com", genre: "sms" }, NOW) === null);
 check("unknown content is rejected", judgmentEvents({ domain: "example.com", content: "hack" }, NOW) === null);
+const otherContent = judgmentEvents({ domain: "example.com", content: "other" }, NOW);
+check("content other is allowed", otherContent && otherContent.some(function (event) { return event.kind === "content" && event.key === "other"; }));
+const otherEvents = [];
+for (let i = 0; i < 10; i++) otherEvents.push({ kind: "content", key: "other", at: NOW });
+check("content other ranks as その他・不明", CONTENT_LABELS.other === "その他・不明" && rankingsFromEvents(otherEvents).contents[0].label === "その他・不明" && rankingsFromEvents(otherEvents).contents[0].key === "other");
+check("the browser sends content other", weekly.recordBody({ domain: "example.com", content: "other" }).content === "other");
 
 const clientBody = weekly.recordBody({ domain: "example.co.jp", genre: "bank", content: null, display_name: "山田", subject: "件名", body: "本文", from_email: "a@example.co.jp" });
 check("the browser payload omits mail text", JSON.stringify(clientBody) === JSON.stringify({ domain: "example.co.jp", genre: "bank" }) && !JSON.stringify(clientBody).includes("@") && !JSON.stringify(clientBody).includes("山田"));

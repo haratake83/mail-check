@@ -23,7 +23,8 @@ export const CONTENT_LABELS = {
   undelivered: "不在通知・再配達",
   lock: "アカウント停止・ロック",
   unpaid: "未払い料金の請求",
-  prize: "当選・給付金の案内"
+  prize: "当選・給付金の案内",
+  other: "その他・不明"
 };
 
 export function toRegistrable(host) {

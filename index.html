@@ -15,7 +15,7 @@
 <header class="site-header">
   <div class="site-header-inner">
     <!-- ここはサイトのヘッダーです -->
-    <h1 class="site-title"><a class="site-wordmark" href="index.html"><img src="img/sagi-mail-check-logo.png" alt="詐欺メールチェック.com" width="1601" height="418"></a></h1>
+    <h1 class="site-title"><a class="site-wordmark" href="index.html"><img src="img/sagi-mail-check-logo.png" alt="詐欺メールチェック.com" width="1552" height="369"></a></h1>
   </div>
 </header>
 <main class="site-main" id="content">
@@ -77,6 +77,7 @@
         <label class="context-option"><input type="radio" name="mail_content" value="lock"> アカウント停止・ロック</label>
         <label class="context-option"><input type="radio" name="mail_content" value="unpaid"> 未払い料金の請求</label>
         <label class="context-option"><input type="radio" name="mail_content" value="prize"> 当選・給付金の案内</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="other"> その他・不明</label>
       </div>
     </fieldset>
 
@@ -147,8 +148,17 @@
     </div>
     <p>表示 v0.10.5／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／本文の判定はブラウザ内／取得日の照会と週間ランキング／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a class="terms-public" href="terms.html" hidden>利用規約（下書き）</a> <a href="#privacy_detail">プライバシーに関する説明</a></p>
-    <p class="guide-nav"><a href="guides/index.html">解説</a> ／ <a href="guides/how-to-spot.html">見分け方</a> ／ <a href="guides/if-you-opened.html">開いてしまったら</a> ／ <a href="guides/types.html">種類</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
+    <nav class="guide-links" aria-label="解説ページ">
+      <!-- ここは解説ページへの案内の欄です -->
+      <a href="guides/how-to-spot.html">詐欺メールの見分け方・特徴</a>
+      <a href="guides/if-you-opened.html">怪しいメールのリンクを開いてしまったら</a>
+      <a href="guides/types.html">怪しいメールの種類一覧</a>
+      <a href="guides/phishing.html">フィッシングメールとは？</a>
+      <a href="guides/malware.html">マルウェアメールとは？</a>
+      <a href="guides/billing.html">架空請求メールとは？</a>
+      <a href="guides/spam.html">スパムメールとは？</a>
+    </nav>
   </footer>
 </main>
 <script src="js/flags.js"></script>

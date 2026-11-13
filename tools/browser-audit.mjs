@@ -270,11 +270,11 @@ const look = await evaluate(`(() => {
     fontLoaded
   };
 })()`);
-check("header logo is 詐欺メールチェック.com inside the page", look.word === "詐欺メールチェック.com" && look.logoSrc === "img/sagi-mail-check-logo.png" && look.logoW === 1601 && look.logoH === 418 && look.title.startsWith("詐欺メール判定.com") && look.og === "詐欺メール判定.com", JSON.stringify(look));
+check("header logo is 詐欺メールチェック.com inside the page", look.word === "詐欺メールチェック.com" && look.logoSrc === "img/sagi-mail-check-logo.png" && look.logoW === 1552 && look.logoH === 369 && look.title.startsWith("詐欺メール判定.com") && look.og === "詐欺メール判定.com", JSON.stringify(look));
 check("header logo has no green frame", look.frameWidth === "0px" && /0,\s*0,\s*0,\s*0/.test(look.fill), JSON.stringify(look));
-check("judge button is white text-black with a 2px green frame", /255,\s*255,\s*255/.test(look.btnBg) && /17,\s*17,\s*17/.test(look.btnColor) && /47,\s*107,\s*79/.test(look.btnBorder) && look.btnBorderWidth === "2px", JSON.stringify(look));
-check("explanations are beige and cautions are yellow with a 1px frame", /246,\s*237,\s*227/.test(look.introBg) && /248,\s*231,\s*193/.test(look.warnBg) && look.warnBorder === "1px" && look.nameBg === look.warnBg && look.bodyBg === look.warnBg, JSON.stringify(look));
-check("footer is beige with a 2px green top border", /246,\s*237,\s*227/.test(look.footBg) && /47,\s*107,\s*79/.test(look.footBorder) && look.footBorderWidth === "2px", JSON.stringify(look));
+check("judge button is white text-black with a 2px navy frame", /255,\s*255,\s*255/.test(look.btnBg) && /17,\s*17,\s*17/.test(look.btnColor) && /34,\s*76,\s*158/.test(look.btnBorder) && look.btnBorderWidth === "2px", JSON.stringify(look));
+check("explanations are white with a navy frame and cautions are sky blue", /255,\s*255,\s*255/.test(look.introBg) && /230,\s*244,\s*251/.test(look.warnBg) && look.warnBorder === "1px" && look.nameBg === look.warnBg && look.bodyBg === look.warnBg, JSON.stringify(look));
+check("footer is white with a thick navy frame", /255,\s*255,\s*255/.test(look.footBg) && /34,\s*76,\s*158/.test(look.footBorder) && look.footBorderWidth === "3px", JSON.stringify(look));
 await setViewport(390, 844, true);
 await shot("front-mobile.png");
 await setViewport(1280, 900, false);
