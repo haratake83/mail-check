@@ -86,13 +86,13 @@ check("history ui is hidden on the form", (await evaluate(`document.getElementBy
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 await evaluate(`document.getElementById("body_privacy").scrollIntoView({ block: "center" })`);
 await shot("v091_body_note_mobile.png", false);
-await evaluate(`document.getElementById("terms_agree").scrollIntoView({ block: "center" })`);
+await evaluate(`document.getElementById("check").scrollIntoView({ block: "center" })`);
 await shot("v092_consent_mobile.png", false);
 await go(origin + "/privacy.html");
 await shot("v092_privacy_plan_mobile.png", false);
 check("plain privacy text is on the privacy page", (await evaluate(`document.body.innerText`)).includes("本文やURLが当サイトに送られたり、保存されたりすることはありません") && (await evaluate(`document.getElementById("privacy_plan").innerText`)).includes("週間ランキングのために送るのは"));
 await go(origin + "/");
-check("terms consent stays on the form", (await evaluate(`document.getElementById("terms_agree").innerText`)).includes("利用規約に同意したものとみなします"));
+check("terms consent line is not on the form", (await evaluate(`document.getElementById("terms_agree") === null && !document.body.innerText.includes("判定すると、")`)) === true);
 check("separate link field is absent", (await evaluate(`document.getElementById("visible_link_url") === null && document.body.innerText.includes("本文に含まれるリンクだけを文字列として調べ、開きません")`)) === true);
 await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await shot("stage3_form_hidden_desktop.png");

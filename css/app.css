@@ -150,6 +150,22 @@ p.lead { margin: 0 0 0.7em; }
 .from-help-body { margin: 8px 0 0; }
 .after-form-notes { margin: 16px 0 8px; }
 .privacy-detail, .stat-note, #history_pending { margin: 0 0 0.7em; background: none; padding: 0; }
+a.privacy-page-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 12px 0 0;
+  padding: 8px 16px;
+  border: 2px solid var(--navy);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--navy);
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+}
+a.privacy-page-link:hover, a.privacy-page-link:focus { background: #fff; color: var(--navy); text-decoration: underline; }
 .context-note { margin: 0 0 12px; }
 .disclaimer { display: block; margin-top: 14px; }
 .list-warn { font-weight: 700; font-size: 1rem; }
