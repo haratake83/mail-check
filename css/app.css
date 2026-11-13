@@ -168,11 +168,11 @@ p.lead { margin: 0 0 0.7em; }
   background: var(--beige);
   border: 1px solid var(--beige-line);
 }
-/* Rankings sit on the footer surface. Space, not a filled card, sets them off from the lines above and below. */
+/* Rankings and the note under them are white. The cream footer stays above and below. */
 .weekly-rankings {
-  margin: 36px 0 40px;
-  padding: 0;
-  background: none;
+  margin: 36px -16px 40px;
+  padding: 16px;
+  background: #fff;
   border: 0;
   border-radius: 0;
 }
