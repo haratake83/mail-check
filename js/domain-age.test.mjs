@@ -10,8 +10,11 @@ import {
   lookupRegistration,
   isSameOrigin,
   createHandler,
+  createMemoryDateCache,
   loadAllowHosts,
-  resetBootstrapCache
+  resetBootstrapCache,
+  SUCCESS_TTL_MS,
+  MISS_TTL_MS
 } from "../api/domain-created.mjs";
 
 const require = createRequire(import.meta.url);
@@ -229,6 +232,58 @@ const limited = mockRes();
 await handler(sameOriginReq({ domain: "example.com" }), limited);
 check("rate limit stops further lookups", again.statusCode === 429 && limited.statusCode === 429 && limited.payload.status === "unavailable" && seen.length === 2);
 
+let clock = NOW;
+const cacheCalls = [];
+const dateCache = createMemoryDateCache();
+const cachedHandler = createHandler({
+  limitPerIp: 30,
+  globalPerMinute: 100,
+  now: function () { return clock; },
+  cache: dateCache,
+  allowHosts: function () { return new Set(["rdap.org", "rdap.example.test"]); },
+  request: async function (url) {
+    cacheCalls.push(url);
+    if (url.indexOf("missing.example") >= 0) return { status: 404, location: "", body: rdap(isoDaysAgo(1)) };
+    if (url.startsWith("https://rdap.org/")) return { status: 302, location: "https://rdap.example.test/domain/example.com", body: "" };
+    return { status: 200, location: "", body: rdap(isoDaysAgo(29)) };
+  }
+});
+const first = mockRes();
+await cachedHandler(sameOriginReq({ domain: "example.com" }), first);
+const callsAfterFirst = cacheCalls.length;
+const second = mockRes();
+await cachedHandler(sameOriginReq({ domain: "Example.COM" }), second);
+check("a second lookup within 7 days does not call RDAP", first.statusCode === 200 && second.statusCode === 200 && second.payload.created === first.payload.created && cacheCalls.length === callsAfterFirst && callsAfterFirst === 2);
+clock = NOW + 2 * 86400000;
+const later = mockRes();
+await cachedHandler(sameOriginReq({ domain: "example.com" }), later);
+check("cached age follows the stored date", later.payload.age_days === first.payload.age_days + 2 && cacheCalls.length === callsAfterFirst);
+const stored = dateCache.inspect();
+const storedJson = JSON.stringify(stored);
+check("cache keeps only the domain and the created date", stored.length === 1 && stored[0].domain === "example.com" && stored[0].created === "2026-10-15" && stored[0].expiresAt === NOW + SUCCESS_TTL_MS && !storedJson.includes("@") && !storedJson.includes("secret") && !storedJson.includes("entities") && !storedJson.includes("vcard") && !("email" in stored[0]) && !("body" in stored[0]));
+clock = NOW + SUCCESS_TTL_MS;
+const afterExpiry = mockRes();
+await cachedHandler(sameOriginReq({ domain: "example.com" }), afterExpiry);
+check("an expired date is looked up again", afterExpiry.statusCode === 200 && cacheCalls.length === callsAfterFirst + 2);
+
+const missed = mockRes();
+await cachedHandler(sameOriginReq({ domain: "missing.example" }), missed);
+const callsAfterMiss = cacheCalls.length;
+const missedAgain = mockRes();
+await cachedHandler(sameOriginReq({ domain: "missing.example" }), missedAgain);
+const missEntry = dateCache.inspect().filter(function (e) { return e.domain === "missing.example"; })[0];
+check("unavailable is remembered for minutes, not 7 days", missed.payload.status === "unavailable" && missedAgain.payload.status === "unavailable" && cacheCalls.length === callsAfterMiss && missEntry.unavailable === true && missEntry.expiresAt - clock === MISS_TTL_MS && MISS_TTL_MS < SUCCESS_TTL_MS && !JSON.stringify(dateCache.inspect()).includes("secret") && !JSON.stringify(dateCache.inspect()).includes("@"));
+clock = clock + MISS_TTL_MS;
+const missedLater = mockRes();
+await cachedHandler(sameOriginReq({ domain: "missing.example" }), missedLater);
+check("a brief unavailable entry expires", missedLater.payload.status === "unavailable" && cacheCalls.length === callsAfterMiss + 1);
+
+const bare = createMemoryDateCache();
+bare.setDate("example.com", "{\"email\":\"secret@example.net\",\"events\":[]}", NOW);
+bare.setDate("person@example.com", "2026-10-15", NOW);
+bare.setUnavailable("gone.example", NOW);
+check("raw RDAP and email addresses are not stored", bare.inspect().length === 1 && bare.inspect()[0].domain === "gone.example" && bare.inspect()[0].unavailable === true && !JSON.stringify(bare.inspect()).includes("secret") && !JSON.stringify(bare.inspect()).includes("@"));
+
 const logs = [];
 const methods = ["log", "info", "warn", "error"];
 const saved = {};
@@ -263,6 +318,7 @@ check("caution uses the yellow 1px note", css.includes(".domain-age-note") && cs
 check("older bands use the beige 1px note", css.includes(".domain-age-note.domain-age-mild") && css.includes("background: var(--beige)") && css.includes("border: 1px solid var(--beige-line)") && !/\.domain-age-mild\s*\{[^}]*border-width:\s*2px/.test(css));
 check("csp keeps form-action none and connect-src self", csp.includes("form-action 'none'") && csp.includes("connect-src 'self'") && !csp.includes("connect-src 'none'") && !csp.includes("rdap.org"));
 check("privacy names the domain lookup and not collection", html.includes("登録ドメイン") && html.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("ドメインは現在どこにも集めていません") && html.includes("表示 v0.10.4") && html.includes("判定プロトコル v0.10"));
+check("privacy says the date is kept for 7 days only", html.includes("最大7日間") && html.includes("統計、履歴、公開の一覧には使いません") && html.includes("登録者の名前や連絡先は残しません") && !html.includes("送ったドメインと取得日は保存せず"));
 check("protocol version is unchanged", fs.readFileSync(path.join(root, "js/protocol-data.js"), "utf8").includes('version: "v0.10"'));
 
 const apiSrc = fs.readFileSync(path.join(root, "api/domain-created.mjs"), "utf8");

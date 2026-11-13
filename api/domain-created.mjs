@@ -1,5 +1,7 @@
 // 差出人の登録ドメインの取得日だけを返す。同一オリジンの POST のみ。
-// ドメインも取得日も保存しない。RDAP の登録者名・メール・住所は読んでも返さない。
+// RDAP だけを使う。WHOIS には切り替えない。登録者名・メール・住所は読んでも返さない。
+// 繰り返す照会を避けるため、正規化した登録ドメインと取得日（YYYY-MM-DD）だけを
+// プロセス内のメモリに最大7日残す。生の RDAP JSON は残さない。
 import https from "node:https";
 
 const DOMAIN_RE = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
@@ -9,6 +11,77 @@ const MAX_HOPS = 3;
 const DAY_MS = 86400000;
 
 const bootstrapCache = { at: 0, hosts: null };
+export const SUCCESS_TTL_MS = 7 * DAY_MS;
+export const MISS_TTL_MS = 5 * 60 * 1000;
+
+export function ageDaysFromCreated(created, now) {
+  if (typeof created !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(created)) return null;
+  const ms = Date.parse(created + "T00:00:00Z");
+  if (!Number.isFinite(ms)) return null;
+  const age = Math.floor((now - ms) / DAY_MS);
+  if (!Number.isInteger(age) || age < 0 || age > 200000) return null;
+  return age;
+}
+
+// Vercel ではインスタンスのメモリだけを使う。資格情報のある外部ストアは要らない。
+// 後の Xserver / MySQL では、同じ get / setDate / setUnavailable を永続実装に差し替える。
+export function createMemoryDateCache(options) {
+  const opts = options || {};
+  const map = new Map();
+  const maxEntries = opts.maxEntries || 2000;
+  const successTtl = opts.successTtlMs || SUCCESS_TTL_MS;
+  const missTtl = opts.missTtlMs || MISS_TTL_MS;
+
+  function prune(now) {
+    const expired = [];
+    map.forEach(function (entry, key) {
+      if (!entry || entry.expiresAt <= now) expired.push(key);
+    });
+    expired.forEach(function (key) { map.delete(key); });
+    while (map.size > maxEntries) {
+      const first = map.keys().next().value;
+      map.delete(first);
+    }
+  }
+
+  return {
+    get: function (domain, now) {
+      const key = normalizeDomain(domain);
+      if (!key) return null;
+      const entry = map.get(key);
+      if (!entry || entry.expiresAt <= now) {
+        if (entry) map.delete(key);
+        return null;
+      }
+      if (typeof entry.created === "string") return { created: entry.created };
+      if (entry.unavailable === true) return { status: "unavailable" };
+      map.delete(key);
+      return null;
+    },
+    setDate: function (domain, created, now) {
+      const key = normalizeDomain(domain);
+      if (!key || typeof created !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(created)) return;
+      map.delete(key);
+      map.set(key, { created: created, expiresAt: now + successTtl });
+      prune(now);
+    },
+    setUnavailable: function (domain, now) {
+      const key = normalizeDomain(domain);
+      if (!key) return;
+      map.delete(key);
+      map.set(key, { unavailable: true, expiresAt: now + missTtl });
+      prune(now);
+    },
+    inspect: function () {
+      const out = [];
+      map.forEach(function (entry, domain) {
+        if (entry && typeof entry.created === "string") out.push({ domain: domain, created: entry.created, expiresAt: entry.expiresAt });
+        else out.push({ domain: domain, unavailable: true, expiresAt: entry && entry.expiresAt });
+      });
+      return out;
+    }
+  };
+}
 
 export function normalizeDomain(raw) {
   if (typeof raw !== "string") return null;
@@ -269,6 +342,7 @@ export function createHandler(options) {
   const globalPerMinute = opts.globalPerMinute || 60;
   const buckets = new Map();
   let globalStamps = [];
+  const cache = opts.cache || createMemoryDateCache();
 
   return async function handler(req, res) {
     const unavailable = function (code) { send(res, code, { status: "unavailable" }); };
@@ -299,6 +373,17 @@ export function createHandler(options) {
       unavailable(400);
       return;
     }
+    const cached = cache.get(domain, now);
+    if (cached && cached.created) {
+      const cachedAge = ageDaysFromCreated(cached.created, now);
+      if (cachedAge != null) {
+        send(res, 200, { created: cached.created, age_days: cachedAge });
+        return;
+      }
+    } else if (cached && cached.status === "unavailable") {
+      send(res, 200, { status: "unavailable" });
+      return;
+    }
     let result;
     try {
       result = await lookupRegistration(domain, { request: request, now: nowFn, allowHosts: allowHosts });
@@ -306,9 +391,11 @@ export function createHandler(options) {
       result = { status: "unavailable" };
     }
     if (!result || result.status === "unavailable" || typeof result.age_days !== "number" || typeof result.created !== "string") {
+      cache.setUnavailable(domain, now);
       send(res, 200, { status: "unavailable" });
       return;
     }
+    cache.setDate(domain, result.created, now);
     send(res, 200, { created: result.created, age_days: result.age_days });
   };
 }
