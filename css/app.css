@@ -168,15 +168,26 @@ p.lead { margin: 0 0 0.7em; }
   background: var(--beige);
   border: 1px solid var(--beige-line);
 }
-.weekly-rankings { margin: 14px 0 8px; }
-.weekly-rank-note,
-.weekly-rank {
-  background: var(--beige);
-  border: 1px solid var(--beige-line);
-  border-radius: 8px;
+/* Rankings sit on the footer surface. Space, not a filled card, sets them off from the lines above and below. */
+.weekly-rankings {
+  margin: 36px 0 40px;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+.weekly-rankings .weekly-rank-note,
+.weekly-rankings .weekly-rank {
+  background: none;
+  border: 0;
+  border-radius: 0;
   color: var(--ink);
-  padding: 10px 12px;
-  margin: 0 0 10px;
+  padding: 0;
+  margin: 0;
+}
+.weekly-rankings .weekly-rank + .weekly-rank,
+.weekly-rankings .weekly-rank-note {
+  margin-top: 18px;
 }
 .weekly-rank h2 { font-size: 1rem; margin: 0 0 8px; color: var(--ink); }
 .weekly-rank-list { list-style: none; margin: 0; padding: 0; }
