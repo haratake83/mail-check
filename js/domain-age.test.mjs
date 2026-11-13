@@ -314,8 +314,8 @@ const attachLine = ui.split("\n").filter(function (line) { return line.includes(
 check("page loads the domain age script", html.includes('src="js/domain-age.js"'));
 check("attach runs after render and receives only the from field", ui.indexOf("render(r)") < ui.indexOf("MH_DOMAIN_AGE.attach") && attachLine.includes('from_email') && !attachLine.includes("display_name") && !attachLine.includes("subject") && !attachLine.includes(".body"));
 check("ui does not fetch by itself", !ui.includes("fetch(") && !ui.includes("rdap.org"));
-check("caution uses the yellow 1px note", css.includes(".domain-age-note") && css.includes("border: 1px solid var(--warn-line)") && !/\.domain-age-note\s*\{[^}]*border-width:\s*2px/.test(css));
-check("older bands use the beige 1px note", css.includes(".domain-age-note.domain-age-mild") && css.includes("background: var(--beige)") && css.includes("border: 1px solid var(--beige-line)") && !/\.domain-age-mild\s*\{[^}]*border-width:\s*2px/.test(css));
+check("caution uses the sky 1px note", css.includes(".domain-age-note") && css.includes("border: 1px solid var(--sky-line)") && css.includes("--sky: #E6F4FB") && !/\.domain-age-note\s*\{[^}]*border-width:\s*2px/.test(css));
+check("older bands use a white note with a thick navy frame", css.includes(".domain-age-note.domain-age-mild") && /domain-age-mild\s*\{[^}]*background:\s*#fff/.test(css) && /domain-age-mild\s*\{[^}]*border:\s*var\(--frame\)/.test(css) && !/\.domain-age-mild\s*\{[^}]*border-width:\s*2px/.test(css));
 check("csp keeps form-action none and connect-src self", csp.includes("form-action 'none'") && csp.includes("connect-src 'self'") && !csp.includes("connect-src 'none'") && !csp.includes("rdap.org"));
 check("privacy names the domain lookup and not collection", html.includes("登録ドメイン") && html.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("表示 v0.10.5") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.4"));
 check("privacy says the date is kept for 7 days only", html.includes("最大7日間") && html.includes("この取得日は、統計、履歴、公開の一覧、週間ランキングには使いません。") && html.includes("登録者の名前や連絡先は残しません") && !html.includes("送ったドメインと取得日は保存せず"));
