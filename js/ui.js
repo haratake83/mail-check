@@ -5,6 +5,11 @@
   var $ = function (id) { return document.getElementById(id); };
   var generation = 0;
   function radio(name) { var x = document.querySelector('input[name="' + name + '"]:checked'); return x ? x.value : null; }
+  function checkedValues(name) {
+    var out = [];
+    document.querySelectorAll('input[name="' + name + '"]:checked').forEach(function (c) { out.push(c.value); });
+    return out;
+  }
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
   var COPY = {
@@ -30,14 +35,15 @@
     $("from_help").textContent = COPY.emailHelp;
     $("from_note").textContent = COPY.emailNote;
     $("from_email").setAttribute("inputmode", "email");
-    $("dn_hint").textContent = "メールアプリに表示されている名前（例: ヤマト運輸）";
+    if ($("dn_hint")) $("dn_hint").textContent = "メールアプリに表示されている名前（例: ヤマト運輸）。判定のためだけに使い、保存や公開はしません。";
     $("body_label").textContent = "メール本文";
     $("ctx_q").textContent = "このメールに心当たりはありますか？";
   }
 
   function clearAll() {
     generation += 1;
-    ["display_name", "subject", "from_email", "body"].forEach(function (id) { $(id).value = ""; });
+    ["display_name", "subject", "from_email", "body"].forEach(function (id) { if ($(id)) $(id).value = ""; });
+    document.querySelectorAll('input[name="sender_genre"], input[name="mail_content"]').forEach(function (c) { c.checked = false; });
     var unk = document.querySelector('input[name="context_answer"][value="unknown"]');
     if (unk) unk.checked = true;
     judgmentKey = null;
@@ -60,7 +66,7 @@
     var r;
     try {
       r = window.MH_judge({
-        display_name: $("display_name").value,
+        display_name: $("display_name") ? $("display_name").value : "",
         subject: $("subject").value,
         from_email: $("from_email").value,
         body: $("body").value,
@@ -312,7 +318,7 @@
         box.appendChild(el("p", null, "統計への受付登録には、別の同意が必要です。同意がないので送信しません。"));
         return;
       }
-      var built = window.MH_STAGE2.buildSubmitPayload({ address: $("from_email").value, display_name: $("display_name").value, consent: true, idempotency_key: sessionKey() });
+      var built = window.MH_STAGE2.buildSubmitPayload({ address: $("from_email").value, genres: checkedValues("sender_genre"), tactics: checkedValues("mail_content"), consent: true, idempotency_key: sessionKey() });
       if (!built.ok) {
         box.appendChild(el("p", null, "メールに記載されたアドレスの形式を確認してください。送信しません。"));
         return;
@@ -324,15 +330,13 @@
         box.appendChild(el("p", null, "現在、統計対象としての送信先はありません。送信していません。"));
       });
     });
-    ["from_email", "display_name"].forEach(function (id) {
-      $(id).addEventListener("input", function () {
+    $("from_email").addEventListener("input", function () {
         if (!historySession) return;
         historySession.invalidate();
         paintHistory(historySession.view());
         var sub = $("history_submit_result");
         if (sub) sub.textContent = "";
       });
-    });
   }
   function applyFlags() {
     var f = window.MH_FLAGS || {};

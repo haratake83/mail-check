@@ -60,7 +60,7 @@ const b = S.buildSubmitPayload({ address: "a@example.com", consent: true, idempo
 check("T-R8 the same judgment key is reused", a.payload.idempotency_key === key && b.payload.idempotency_key === key);
 check("T-R9 client name filter is not described as a guarantee", fs.readFileSync(path.join(root, "js/stage2-public.js"), "utf8").includes("公開の安全保証ではない"));
 check("T-R14 the result renderer does not show an attention score", !ui.includes("注意度") && !ui.includes("renderAttention") && !ui.includes("attention-scale"));
-check("T-R17 privacy sits under the judge button", index.indexOf('id="check"') < index.indexOf('id="privacy_detail"') && index.indexOf('id="privacy_detail"') < index.indexOf('id="history_panel"'));
+check("T-R17 privacy sits above the judge button", index.indexOf('id="privacy_detail"') < index.indexOf('id="check"') && index.indexOf('id="privacy_detail"') < index.indexOf('id="history_panel"'));
 check("T-R18 warning is next to the address and help is in details", index.indexOf('id="from_warn"') < index.indexOf('id="from_email"') && index.indexOf("<details") < index.indexOf('id="from_help"'));
 check("T-O2 metadata is kept and a data scheme is rejected", S.sanitizeName("metadata: keep") === "metadata: keep" && S.sanitizeName("data:text") === null);
 const listed = projectReadableList([{

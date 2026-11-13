@@ -58,6 +58,15 @@
     return t;
   }
   var FORBIDDEN = ["body", "url", "visible_link_url", "subject", "context_answer", "verdict", "danger_level", "purpose", "purpose_assessment", "spans", "span", "otp", "token", "display"];
+  function pickAllowed(arr, allowed) {
+    if (!Array.isArray(arr)) return [];
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      var v = arr[i];
+      if (allowed.indexOf(v) >= 0 && out.indexOf(v) < 0) out.push(v);
+    }
+    return out;
+  }
   function forbidden(fields) {
     if (!fields || typeof fields !== "object") return false;
     for (var i = 0; i < FORBIDDEN.length; i++) {
@@ -91,8 +100,11 @@
       address: n.address,
       idempotency_key: fields.idempotency_key || freshKey()
     };
-    var name = sanitizeName(fields.display_name);
-    if (name) payload.display_name = name;
+    // 送信元の名前は集めない。選択式のジャンルと内容だけ付ける。
+    var genres = pickAllowed(fields.genres, ["delivery", "bank", "ec", "carrier", "gov", "other"]);
+    var tactics = pickAllowed(fields.tactics, ["undelivered", "lock", "unpaid", "prize"]);
+    if (genres.length) payload.genres = genres;
+    if (tactics.length) payload.tactics = tactics;
     return { ok: true, payload: payload };
   }
   function freshKey() {

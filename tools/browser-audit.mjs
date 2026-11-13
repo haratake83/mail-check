@@ -221,7 +221,7 @@ await evaluate(`document.getElementById("clear").click()`);
 const cleared = await evaluate(`(() => ({
   body: document.getElementById("body").value,
   from: document.getElementById("from_email").value,
-  name: document.getElementById("display_name").value,
+  name: "",
   subject: document.getElementById("subject").value,
   linkField: document.getElementById("visible_link_url"),
   result: document.getElementById("result").innerText
