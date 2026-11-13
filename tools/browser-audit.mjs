@@ -406,37 +406,68 @@ await evaluate(`new Promise((r) => setTimeout(r, 400))`);
 const unavailableAge = await evaluate(`(() => ({ note: !!document.querySelector(".domain-age-note"), head: (document.querySelector(".verdict-head") || {}).textContent || "" }))()`);
 check("unavailable registration date adds no caution", unavailableAge.note === false && unavailableAge.head.includes("判断できませんでした"), JSON.stringify(unavailableAge));
 
-const created = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-const [cy, cm, cd] = created.split("-").map(Number);
-const createdJa = cy + "年" + cm + "月" + cd + "日";
-domainAgeReply = { created, age_days: 30 };
-await go(origin + "/");
-const beforeAge = net.length;
-await setFields({
-  display_name: "山田太郎",
-  subject: "重要なお知らせ",
-  from_email: "yamada.taro@example.com",
-  body: "山田様、本日の連絡です。https://example.com/secret-path",
-  context_answer: "unknown"
-});
-await judge();
-const ageShown = await evaluate(`new Promise((resolve) => {
-  const t = setInterval(() => {
-    const note = document.querySelector("#result .domain-age-note");
-    if (note) { clearInterval(t); resolve(true); }
-  }, 20);
-  setTimeout(() => { clearInterval(t); resolve(false); }, 3000);
-})`);
-const ageView = await resultView();
-const ageNote = await evaluate(`(document.querySelector(".domain-age-note") || {}).textContent || ""`);
-const agePosts = net.slice(beforeAge).filter((r) => r.method === "POST");
-check("30-day caution is visible and is not a scam verdict", ageShown === true && ageNote.includes(createdJa) && ageNote.includes("30日以内") && ageNote.includes("しっかりと確認が必要です。※詐欺と確定したことにはなりません。") && !ageNote.includes("このメールは詐欺です") && !ageNote.includes("可能性が高い") && !ageNote.includes("不審") && !ageNote.includes("信頼性が低い") && ageView.className.includes("v-grey") && ageView.headline.includes("判断できませんでした"), ageNote.slice(0, 180) + " / " + ageView.className);
-check("the lookup post is only the registrable domain", agePosts.length === 1 && agePosts[0].postData === "{\"domain\":\"example.com\"}" && !agePosts[0].postData.includes("@") && !agePosts[0].postData.includes("yamada") && !agePosts[0].postData.includes("山田") && !agePosts[0].postData.includes("重要") && !agePosts[0].postData.includes("secret-path"), JSON.stringify(agePosts));
+async function showAge(ageDays) {
+  const created = new Date(Date.now() - ageDays * 86400000).toISOString().slice(0, 10);
+  const [cy, cm, cd] = created.split("-").map(Number);
+  const createdJa = cy + "年" + cm + "月" + cd + "日";
+  domainAgeReply = { created, age_days: ageDays };
+  await setViewport(1280, 900, false);
+  await go(origin + "/");
+  const before = net.length;
+  await setFields({
+    display_name: "山田太郎",
+    subject: "重要なお知らせ",
+    from_email: "yamada.taro@example.com",
+    body: "山田様、本日の連絡です。https://example.com/secret-path",
+    context_answer: "unknown"
+  });
+  await judge();
+  const shown = await evaluate(`new Promise((resolve) => {
+    const t = setInterval(() => {
+      const note = document.querySelector("#result .domain-age-note");
+      if (note) { clearInterval(t); resolve(true); }
+    }, 20);
+    setTimeout(() => { clearInterval(t); resolve(false); }, 3000);
+  })`);
+  const view = await resultView();
+  const detail = await evaluate(`(() => {
+    const note = document.querySelector(".domain-age-note");
+    const cs = note ? getComputedStyle(note) : null;
+    return {
+      text: note ? note.textContent : "",
+      mild: note ? note.classList.contains("domain-age-mild") : false,
+      bg: cs ? cs.backgroundColor : "",
+      border: cs ? cs.borderTopWidth : ""
+    };
+  })()`);
+  const posts = net.slice(before).filter((r) => r.method === "POST");
+  return { createdJa, shown, view, detail, posts };
+}
+const band1 = await showAge(30);
+check("30-day caution is visible and is not a scam verdict", band1.shown === true && band1.detail.mild === false && /248,\s*231,\s*193/.test(band1.detail.bg) && band1.detail.border === "1px" && band1.detail.text.includes(band1.createdJa) && band1.detail.text.includes("30日以内") && band1.detail.text.includes("しっかりと確認が必要です。※詐欺と確定したことにはなりません。") && !band1.detail.text.includes("このメールは詐欺です") && !band1.detail.text.includes("可能性が高い") && !band1.detail.text.includes("不審") && !band1.detail.text.includes("信頼性が低い") && band1.view.className.includes("v-grey") && band1.view.headline.includes("判断できませんでした"), band1.detail.text.slice(0, 180) + " / " + band1.detail.bg);
+check("the lookup post is only the registrable domain", band1.posts.length === 1 && band1.posts[0].postData === "{\"domain\":\"example.com\"}" && !band1.posts[0].postData.includes("@") && !band1.posts[0].postData.includes("yamada") && !band1.posts[0].postData.includes("山田") && !band1.posts[0].postData.includes("重要") && !band1.posts[0].postData.includes("secret-path"), JSON.stringify(band1.posts));
 await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
-await shot("domain-age-caution-desktop.png", false);
+await shot("domain-age-band1-desktop.png", false);
 await setViewport(390, 844, true);
 await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
-await shot("domain-age-caution-mobile.png", false);
+await shot("domain-age-band1-mobile.png", false);
+
+const band2 = await showAge(31);
+check("31-day note is the milder under-a-year text", band2.shown === true && band2.detail.mild === true && /246,\s*237,\s*227/.test(band2.detail.bg) && band2.detail.border === "1px" && band2.detail.text.includes(band2.createdJa) && band2.detail.text.includes("取得から31日以上、1年未満") && band2.detail.text.endsWith("詐欺と確定したことにはなりません。") && !band2.detail.text.includes("30日以内") && !band2.detail.text.includes("低リスク") && !band2.detail.text.includes("高リスク") && band2.view.className.includes("v-grey"), band2.detail.text.slice(0, 200) + " / " + band2.detail.bg);
+await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
+await shot("domain-age-band2-desktop.png", false);
+await setViewport(390, 844, true);
+await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
+await shot("domain-age-band2-mobile.png", false);
+
+const band3 = await showAge(365);
+check("365-day note does not call the domain safe", band3.shown === true && band3.detail.mild === true && /246,\s*237,\s*227/.test(band3.detail.bg) && band3.detail.border === "1px" && band3.detail.text.includes(band3.createdJa) && band3.detail.text.includes("取得から1年以上") && band3.detail.text.endsWith("安全と確認できたことにはなりません。") && !band3.detail.text.includes("低リスク") && !band3.detail.text.includes("高リスク") && band3.view.className.includes("v-grey"), band3.detail.text.slice(0, 200) + " / " + band3.detail.bg);
+await setViewport(1280, 900, false);
+await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
+await shot("domain-age-band3-desktop.png", false);
+await setViewport(390, 844, true);
+await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
+await shot("domain-age-band3-mobile.png", false);
 await setViewport(1280, 900, false);
 
 const secrets = fixture.secrets;

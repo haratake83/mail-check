@@ -164,6 +164,10 @@ p.lead { margin: 0 0 0.7em; }
   font-size: 0.95rem;
   margin: 0 0 12px;
 }
+.domain-age-note.domain-age-mild {
+  background: var(--beige);
+  border: 1px solid var(--beige-line);
+}
 .draft-notice { padding: 10px 12px; font-weight: 700; }
 .safety-banner {
   border-width: 2px;

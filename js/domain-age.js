@@ -40,13 +40,35 @@
     return Number(m[1]) + "年" + month + "月" + day + "日";
   }
 
-  function cautionText(info) {
+  function notePresentation(info) {
     var clean = sanitizeLookup(info);
-    if (!clean || clean.status === "unavailable" || clean.age_days > 30) return "";
-    var tail = "大手の組織や公的機関が、取得から間もないドメインから重要なお知らせを送ることはあまりありません。公式の案内と照合するなど、しっかりと確認が必要です。※詐欺と確定したことにはなりません。";
+    if (!clean || clean.status === "unavailable") return { text: "", className: "" };
+    var age = clean.age_days;
     var day = formatJaDate(clean.created);
-    if (day) return "送信元ドメインの取得は、公開情報によると" + day + "です（30日以内）。" + tail;
-    return "送信元ドメインの取得は、公開情報によると30日以内です。" + tail;
+    var head = "送信元ドメインの取得は、公開情報によると";
+    if (age <= 30) {
+      var recent = "大手の組織や公的機関が、取得から間もないドメインから重要なお知らせを送ることはあまりありません。公式の案内と照合するなど、しっかりと確認が必要です。※詐欺と確定したことにはなりません。";
+      return {
+        text: day ? head + day + "です（30日以内）。" + recent : head + "30日以内です。" + recent,
+        className: "domain-age-note"
+      };
+    }
+    if (age <= 364) {
+      var year = "大手の組織や公的機関の公式な案内かどうかは、取得日だけでは分かりません。公式の案内と照合するなど、判断の材料にしてください。この期間であることだけを理由に、詐欺と確定したことにはなりません。";
+      return {
+        text: day ? head + day + "です（取得から31日以上、1年未満）。" + year : head + "取得から31日以上、1年未満です。" + year,
+        className: "domain-age-note domain-age-mild"
+      };
+    }
+    var older = "取得から一定の期間が経過しています。ただし、時間が経っていることと、正規の案内であることは同じではありません。なりすましや、正規のドメインに見せかける手口もあるため、文面と送信元を確認してください。この期間であることだけを理由に、安全と確認できたことにはなりません。";
+    return {
+      text: day ? head + day + "です（取得から1年以上）。" + older : head + "取得から1年以上です。" + older,
+      className: "domain-age-note domain-age-mild"
+    };
+  }
+
+  function cautionText(info) {
+    return notePresentation(info).text;
   }
 
   function lookup(domain, signal) {
@@ -71,14 +93,14 @@
 
   function paint(info) {
     if (typeof document === "undefined") return;
-    var text = cautionText(info);
-    if (!text) return;
+    var view = notePresentation(info);
+    if (!view.text) return;
     var box = document.getElementById("result");
     if (!box || box.className.indexOf("show") < 0) return;
     if (box.querySelector(".domain-age-note")) return;
     var note = document.createElement("p");
-    note.className = "domain-age-note";
-    note.textContent = text;
+    note.className = view.className;
+    note.textContent = view.text;
     var anchor = box.querySelector(".verdict-body");
     if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(note, anchor.nextSibling);
     else box.appendChild(note);
@@ -107,6 +129,7 @@
   g.MH_DOMAIN_AGE = {
     planLookup: planLookup,
     cautionText: cautionText,
+    notePresentation: notePresentation,
     sanitizeLookup: sanitizeLookup,
     lookup: lookup,
     attach: attach,

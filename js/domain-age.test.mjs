@@ -64,14 +64,35 @@ for (const days of [29, 30]) {
   const text = age.cautionText(got);
   check(days + " days returns a caution", got.age_days === days && text.includes("30日以内") && text.includes("しっかりと確認が必要です。※詐欺と確定したことにはなりません。") && text.includes("大手の組織や公的機関が"), text);
   check(days + " days names the public date", text.includes(days === 30 ? "2026年10月14日" : "2026年10月15日"), text);
+  check(days + " days stays the yellow note", age.notePresentation(got).className === "domain-age-note");
   banned.forEach(function (word) { check(days + " days avoids 「" + word + "」", !text.includes(word)); });
   check(days + " days does not return registrant data", Object.keys(got).sort().join(",") === "age_days,created" && !JSON.stringify(got).includes("secret-registrant") && !JSON.stringify(got).includes("@"), JSON.stringify(got));
 }
 
+function jaDate(iso) {
+  const parts = iso.split("-").map(Number);
+  return parts[0] + "年" + parts[1] + "月" + parts[2] + "日";
+}
+const band2Tail = "大手の組織や公的機関の公式な案内かどうかは、取得日だけでは分かりません。公式の案内と照合するなど、判断の材料にしてください。この期間であることだけを理由に、詐欺と確定したことにはなりません。";
+const band3Tail = "取得から一定の期間が経過しています。ただし、時間が経っていることと、正規の案内であることは同じではありません。なりすましや、正規のドメインに見せかける手口もあるため、文面と送信元を確認してください。この期間であることだけを理由に、安全と確認できたことにはなりません。";
+
 const older = routes(31);
 const got31 = await lookupRegistration("example.com", { request: older.request, now: function () { return NOW; }, allowHosts: older.allowHosts });
 const text31 = age.cautionText(got31);
-check("31 days has no this caution", got31.age_days === 31 && text31 === "" && !text31.includes("30日以内"));
+const view31 = age.notePresentation(got31);
+check("31 days is the milder under-a-year note", got31.age_days === 31 && text31 === "送信元ドメインの取得は、公開情報によると" + jaDate(got31.created) + "です（取得から31日以上、1年未満）。" + band2Tail && !text31.includes("30日以内") && view31.className === "domain-age-note domain-age-mild", text31);
+
+const yearish = routes(364);
+const got364 = await lookupRegistration("example.com", { request: yearish.request, now: function () { return NOW; }, allowHosts: yearish.allowHosts });
+const text364 = age.cautionText(got364);
+check("364 days stays in the under-a-year note", got364.age_days === 364 && text364 === "送信元ドメインの取得は、公開情報によると" + jaDate(got364.created) + "です（取得から31日以上、1年未満）。" + band2Tail && !text364.includes("取得から1年以上"), text364);
+
+const fullYear = routes(365);
+const got365 = await lookupRegistration("example.com", { request: fullYear.request, now: function () { return NOW; }, allowHosts: fullYear.allowHosts });
+const text365 = age.cautionText(got365);
+const view365 = age.notePresentation(got365);
+check("365 days is the one-year note", got365.age_days === 365 && text365 === "送信元ドメインの取得は、公開情報によると" + jaDate(got365.created) + "です（取得から1年以上）。" + band3Tail && view365.className === "domain-age-note domain-age-mild" && !text365.includes("安全です") && text365.endsWith("安全と確認できたことにはなりません。"), text365);
+check("notes do not say 低リスク or 高リスク", ![text31, text364, text365, age.cautionText({ created: "2026-10-14", age_days: 30 })].some(function (t) { return t.includes("低リスク") || t.includes("高リスク") || t.includes("なりぶ"); }));
 
 const missing = await lookupRegistration("example.com", {
   request: async function () { return { status: 200, location: "", body: JSON.stringify({ events: [{ eventAction: "last changed", eventDate: isoDaysAgo(1) }] }) }; },
@@ -112,6 +133,8 @@ check("lookup drops fields other than the date and age", posted.created === "202
 globalThis.fetch = originalFetch;
 
 check("age without a date does not invent one", age.cautionText({ age_days: 30 }).includes("公開情報によると30日以内です。") && !age.cautionText({ age_days: 30 }).includes("年"));
+check("band 2 without a date does not invent one", age.cautionText({ age_days: 31 }) === "送信元ドメインの取得は、公開情報によると取得から31日以上、1年未満です。" + band2Tail && age.cautionText({ age_days: 364 }) === age.cautionText({ age_days: 31 }));
+check("band 3 without a date does not invent one", age.cautionText({ age_days: 365 }) === "送信元ドメインの取得は、公開情報によると取得から1年以上です。" + band3Tail && !/\d{4}年/.test(age.cautionText({ age_days: 365 })));
 check("a date alone is not a caution", age.cautionText({ created: "2026-10-14" }) === "");
 check("future age is not a caution", age.cautionText({ created: "2026-12-01", age_days: -1 }) === "");
 
@@ -237,6 +260,7 @@ check("page loads the domain age script", html.includes('src="js/domain-age.js"'
 check("attach runs after render and receives only the from field", ui.indexOf("render(r)") < ui.indexOf("MH_DOMAIN_AGE.attach") && attachLine.includes('from_email') && !attachLine.includes("display_name") && !attachLine.includes("subject") && !attachLine.includes(".body"));
 check("ui does not fetch by itself", !ui.includes("fetch(") && !ui.includes("rdap.org"));
 check("caution uses the yellow 1px note", css.includes(".domain-age-note") && css.includes("border: 1px solid var(--warn-line)") && !/\.domain-age-note\s*\{[^}]*border-width:\s*2px/.test(css));
+check("older bands use the beige 1px note", css.includes(".domain-age-note.domain-age-mild") && css.includes("background: var(--beige)") && css.includes("border: 1px solid var(--beige-line)") && !/\.domain-age-mild\s*\{[^}]*border-width:\s*2px/.test(css));
 check("csp keeps form-action none and connect-src self", csp.includes("form-action 'none'") && csp.includes("connect-src 'self'") && !csp.includes("connect-src 'none'") && !csp.includes("rdap.org"));
 check("privacy names the domain lookup and not collection", html.includes("登録ドメイン") && html.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("ドメインは現在どこにも集めていません") && html.includes("表示 v0.10.4") && html.includes("判定プロトコル v0.10"));
 check("protocol version is unchanged", fs.readFileSync(path.join(root, "js/protocol-data.js"), "utf8").includes('version: "v0.10"'));
