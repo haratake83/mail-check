@@ -170,10 +170,10 @@ p.lead { margin: 0 0 0.7em; }
   background: #fff;
   border: var(--frame);
 }
-/* Rankings and the note under them are white. The cream footer stays above and below. */
+/* Rankings and the note under them stay white, with no frame. */
 .weekly-rankings {
-  margin: 36px -16px 40px;
-  padding: 16px;
+  margin: 28px 0;
+  padding: 0;
   background: #fff;
   border: 0;
   border-radius: 0;
@@ -289,13 +289,14 @@ h2.sec, h3.sec { font-size: 1rem; margin: 16px 0 6px; color: var(--ink); }
 
 footer {
   margin: 8px 0 24px;
-  padding: 12px 16px 14px;
-  border: var(--frame);
-  border-radius: 8px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   color: var(--ink);
   font-size: var(--body-text);
-  background: #fff;
+  background: none;
 }
+body.home footer { margin-top: 28px; }
 footer p { margin: 8px 0; }
 footer a { color: var(--ink); }
 .guide-links {
