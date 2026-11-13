@@ -155,6 +155,15 @@ p.lead { margin: 0 0 0.7em; }
 }
 .from-warn,
 .field-warn { padding: 10px 12px; font-size: 0.9rem; margin: 6px 0; }
+.domain-age-note {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  margin: 0 0 12px;
+}
 .draft-notice { padding: 10px 12px; font-weight: 700; }
 .safety-banner {
   border-width: 2px;

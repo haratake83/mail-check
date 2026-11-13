@@ -30,8 +30,17 @@ const headerList = (vercel.headers && vercel.headers[0] && vercel.headers[0].hea
 const staticHeaders = Object.fromEntries(headerList.map((h) => [h.key, h.value]));
 const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json", ".txt": "text/plain; charset=utf-8", ".png": "image/png", ".woff2": "font/woff2" };
 
-const site = createServer((req, res) => {
+let domainAgeReply = { status: "unavailable" };
+const site = createServer(async (req, res) => {
   const url = new URL(req.url, "http://127.0.0.1");
+  if (req.method === "POST" && url.pathname === "/api/domain-created") {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    void Buffer.concat(chunks);
+    res.writeHead(200, { ...staticHeaders, "Cache-Control": "no-store", "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify(domainAgeReply));
+    return;
+  }
   let p = decodeURIComponent(url.pathname);
   if (p === "/") p = "/index.html";
   const file = path.normalize(path.join(root, p));
@@ -184,8 +193,8 @@ async function storageDump() {
     };
   })()`);
 }
-async function shot(name) {
-  const pic = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
+async function shot(name, beyond) {
+  const pic = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: beyond !== false });
   writeFileSync(path.join(outDir, name), Buffer.from(pic.data, "base64"));
 }
 async function setViewport(width, height, mobile) {
@@ -389,11 +398,61 @@ for (const mobile of [false, true]) {
 check("strong frame is red, review frame is amber, and headlines stay black", /176,\s*0,\s*0/.test(colors.desktop_strong_suspicion.borderColor) && /138,\s*82,\s*0/.test(colors.desktop_needs_review.borderColor) && /17,\s*17,\s*17/.test(colors.desktop_strong_suspicion.color) && /17,\s*17,\s*17/.test(colors.desktop_needs_review.color), JSON.stringify(colors.desktop_strong_suspicion) + " " + JSON.stringify(colors.desktop_needs_review));
 check("no_clear headline is black and the frame is grey", /17,\s*17,\s*17/.test(colors.desktop_no_clear_signal.color) && /85,\s*85,\s*85/.test(colors.desktop_no_clear_signal.borderColor), JSON.stringify(colors.desktop_no_clear_signal));
 
+await setViewport(1280, 900, false);
+await go(origin + "/");
+await setFields({ from_email: "notice@example.com", body: "山田様、本日の連絡です。", context_answer: "unknown" });
+await judge();
+await evaluate(`new Promise((r) => setTimeout(r, 400))`);
+const unavailableAge = await evaluate(`(() => ({ note: !!document.querySelector(".domain-age-note"), head: (document.querySelector(".verdict-head") || {}).textContent || "" }))()`);
+check("unavailable registration date adds no caution", unavailableAge.note === false && unavailableAge.head.includes("判断できませんでした"), JSON.stringify(unavailableAge));
+
+const created = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+const [cy, cm, cd] = created.split("-").map(Number);
+const createdJa = cy + "年" + cm + "月" + cd + "日";
+domainAgeReply = { created, age_days: 30 };
+await go(origin + "/");
+const beforeAge = net.length;
+await setFields({
+  display_name: "山田太郎",
+  subject: "重要なお知らせ",
+  from_email: "yamada.taro@example.com",
+  body: "山田様、本日の連絡です。https://example.com/secret-path",
+  context_answer: "unknown"
+});
+await judge();
+const ageShown = await evaluate(`new Promise((resolve) => {
+  const t = setInterval(() => {
+    const note = document.querySelector("#result .domain-age-note");
+    if (note) { clearInterval(t); resolve(true); }
+  }, 20);
+  setTimeout(() => { clearInterval(t); resolve(false); }, 3000);
+})`);
+const ageView = await resultView();
+const ageNote = await evaluate(`(document.querySelector(".domain-age-note") || {}).textContent || ""`);
+const agePosts = net.slice(beforeAge).filter((r) => r.method === "POST");
+check("30-day caution is visible and is not a scam verdict", ageShown === true && ageNote.includes(createdJa) && ageNote.includes("30日以内") && ageNote.includes("しっかりと確認が必要です。※詐欺と確定したことにはなりません。") && !ageNote.includes("このメールは詐欺です") && !ageNote.includes("可能性が高い") && !ageNote.includes("不審") && !ageNote.includes("信頼性が低い") && ageView.className.includes("v-grey") && ageView.headline.includes("判断できませんでした"), ageNote.slice(0, 180) + " / " + ageView.className);
+check("the lookup post is only the registrable domain", agePosts.length === 1 && agePosts[0].postData === "{\"domain\":\"example.com\"}" && !agePosts[0].postData.includes("@") && !agePosts[0].postData.includes("yamada") && !agePosts[0].postData.includes("山田") && !agePosts[0].postData.includes("重要") && !agePosts[0].postData.includes("secret-path"), JSON.stringify(agePosts));
+await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
+await shot("domain-age-caution-desktop.png", false);
+await setViewport(390, 844, true);
+await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
+await shot("domain-age-caution-mobile.png", false);
+await setViewport(1280, 900, false);
+
 const secrets = fixture.secrets;
 const leaked = net.filter((r) => secrets.some((s) => (r.url + "\n" + r.postData).includes(s)));
 check("no network event contains a fixture secret", leaked.length === 0, JSON.stringify(leaked).slice(0, 500));
 const posts = net.filter((r) => r.method === "POST");
-check("no POST was observed", posts.length === 0, JSON.stringify(posts).slice(0, 500));
+function domainPostOnly(r) {
+  try {
+    const u = new URL(r.url);
+    if (u.pathname !== "/api/domain-created") return false;
+    const data = JSON.parse(r.postData || "");
+    const keys = Object.keys(data);
+    return keys.length === 1 && keys[0] === "domain" && data.domain === "example.com" && !String(r.postData).includes("@");
+  } catch (e) { return false; }
+}
+check("POSTs are only the registrable domain", posts.length > 0 && posts.every(domainPostOnly), JSON.stringify(posts.map((r) => ({ url: r.url, postData: r.postData }))).slice(0, 500));
 function hostOf(url) { try { return new URL(url).host; } catch (e) { return ""; } }
 const foreign = net.filter((r) => {
   if (!r.url || /^(data|blob|about|chrome|chrome-extension):/.test(r.url)) return false;
@@ -403,7 +462,7 @@ check("network hosts stay on the local audit server", foreign.length === 0, JSON
 const typesSeen = {};
 net.forEach((r) => { typesSeen[r.type || r.when || "unknown"] = (typesSeen[r.type || r.when || "unknown"] || 0) + 1; });
 
-const sourceFiles = ["js/judge.js", "js/ui.js", "js/protocol-data.js", "index.html"];
+const sourceFiles = ["js/judge.js", "js/ui.js", "js/domain-age.js", "js/protocol-data.js", "index.html"];
 const sourceIndicators = [];
 const indicatorRe = /fetch\s*\(|new\s+Image\s*\(|import\s*\(|sendBeacon\s*\(|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB/g;
 for (const rel of sourceFiles) {
@@ -411,6 +470,7 @@ for (const rel of sourceFiles) {
   const hits = text.match(indicatorRe) || [];
   if (hits.length) sourceIndicators.push({ file: rel, hits });
 }
+check("the only browser network API is the domain lookup", sourceIndicators.length === 1 && sourceIndicators[0].file === "js/domain-age.js" && sourceIndicators[0].hits.join(",") === "fetch(", JSON.stringify(sourceIndicators));
 
 const report = {
   measured_at_jst: new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace("Z", "+09:00"),
@@ -437,7 +497,7 @@ const report = {
   },
   source_indicators: sourceIndicators,
   git_head: execSync("git rev-parse HEAD", { cwd: root }).toString().trim(),
-  note: "合格は、このローカル実行で観測したネットワークイベントに入力が含まれなかった、という意味です。配信環境へは広げません。"
+  note: "合格は、このローカル実行で、登録ドメイン以外の入力が通信に乗らなかった、という意味です。配信環境へは広げません。"
 };
 writeFileSync(path.join(outDir, "stage1_network_audit.json"), JSON.stringify(report, null, 2));
 console.log(JSON.stringify({

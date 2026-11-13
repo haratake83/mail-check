@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// 注意度と利用規約のローカル監査。GET のみ。本番・プレビューは見ない。
+// 注意度と利用規約のローカル監査。本番・プレビューは見ない。
+// 判定後の POST は、登録ドメインを /api/domain-created へ送るものだけを許す。
 // node tools/stage3-browser-audit.mjs
 import { spawn, execSync } from "child_process";
 import { createServer } from "http";
@@ -54,7 +55,7 @@ ws.addEventListener("message", (ev) => {
   if (msg.id && pending.has(msg.id)) {
     const p = pending.get(msg.id); pending.delete(msg.id);
     if (msg.error) p.reject(new Error(JSON.stringify(msg.error))); else p.resolve(msg.result);
-  } else if (msg.method === "Network.requestWillBeSent") net.push({ url: msg.params.request.url, method: msg.params.request.method });
+  } else if (msg.method === "Network.requestWillBeSent") net.push({ url: msg.params.request.url, method: msg.params.request.method, postData: msg.params.request.postData || "" });
 });
 await send("Network.enable"); await send("Page.enable"); await send("Runtime.enable");
 async function evaluate(expression) {
@@ -142,11 +143,20 @@ check("subject is text, shortened, and mirrored in the history slot", shown === 
 await evaluate(`document.getElementById("clear").click();`);
 check("clear removes the subject", (await evaluate(`document.getElementById("subject").value`)) === "" && (await evaluate(`document.getElementById("history_subject").textContent`)) === "（件名なし）");
 await shot("v093_subject_mobile.png", false);
-check("only GET", net.every((r) => r.method === "GET"));
+function domainPostOnly(r) {
+  try {
+    const u = new URL(r.url);
+    if (u.pathname !== "/api/domain-created" || u.host !== new URL(origin).host) return false;
+    const data = JSON.parse(r.postData || "");
+    const keys = Object.keys(data);
+    return keys.length === 1 && keys[0] === "domain" && data.domain === "example.com" && !String(r.postData).includes("@");
+  } catch (e) { return false; }
+}
+check("mail text is not posted", net.every((r) => r.method === "GET" || domainPostOnly(r)) && net.some((r) => r.method === "POST") && net.every((r) => !(r.postData || "").includes("ギフト") && !(r.postData || "").includes("山田") && !(r.postData || "").includes("<img") && !(r.postData || "").includes("@")));
 check("only local host", net.every((r) => { try { return new URL(r.url).host === new URL(origin).host; } catch (e) { return false; } }));
 const report = {
   git_head: execSync("git rev-parse HEAD", { cwd: root }).toString().trim(),
-  scope: "local Chrome GET only. production and preview were not opened.",
+  scope: "local Chrome. production and preview were not opened. POSTs may contain only the registrable domain.",
   checks: { pass: passCount, fail: failures.length, failures },
   network_events: net.length,
   methods: [...new Set(net.map((r) => r.method))]
