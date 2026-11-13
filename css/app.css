@@ -129,10 +129,17 @@ p.lead { margin: 0 0 0.7em; }
 .hint { display: block; font-weight: 400; margin: 2px 0 6px; color: var(--ink); background: none; padding: 0; }
 /* 名前・本文の説明は、件名・アドレスの説明（注意の水色）と同じ背景色 */
 #dn_hint,
-.body-notes,
-.choice-missing {
+.body-notes {
   background: var(--sky);
   border: 1px solid var(--sky-line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 10px 12px;
+  margin: 6px 0;
+}
+.choice-missing {
+  background: #FDECEF;
+  border: 1px solid #E89AAE;
   border-radius: 8px;
   color: var(--ink);
   padding: 10px 12px;
