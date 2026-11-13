@@ -28,7 +28,7 @@ if (!chromeBin) {
 const vercel = JSON.parse(readFileSync(path.join(root, "vercel.json"), "utf8"));
 const headerList = (vercel.headers && vercel.headers[0] && vercel.headers[0].headers) || [];
 const staticHeaders = Object.fromEntries(headerList.map((h) => [h.key, h.value]));
-const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json", ".txt": "text/plain; charset=utf-8", ".png": "image/png" };
+const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".json": "application/json", ".txt": "text/plain; charset=utf-8", ".png": "image/png", ".woff2": "font/woff2" };
 
 const site = createServer((req, res) => {
   const url = new URL(req.url, "http://127.0.0.1");
@@ -124,6 +124,7 @@ async function go(url) {
   const before = net.length;
   await send("Page.navigate", { url });
   await evaluate(`new Promise((resolve) => { if (document.readyState === "complete") resolve(true); else addEventListener("load", () => resolve(true), { once: true }); })`);
+  await evaluate(`document.fonts.ready`);
   return net.slice(before);
 }
 async function setFields(input) {
@@ -149,12 +150,14 @@ async function resultView() {
     const head = box.querySelector(".verdict-head");
     const lead = box.querySelector(".lead-alert h2");
     const hs = head ? getComputedStyle(head) : null;
+    const bs = getComputedStyle(box);
     return {
       className: box.className,
       headline: head ? head.textContent : "",
       lead: lead ? lead.textContent : "",
       text: box.innerText,
       color: hs ? hs.color : "",
+      borderColor: bs.borderTopColor,
       banner: !!box.querySelector(".safety-banner"),
       anchors: [...box.querySelectorAll("a")].map((a) => a.getAttribute("href")),
       images: document.images.length,
@@ -207,6 +210,54 @@ async function historyBack() {
 
 await go(origin + "/");
 await setViewport(1280, 900, false);
+await shot("front-desktop.png");
+const look = await evaluate(`(() => {
+  const wm = document.querySelector(".site-wordmark");
+  const tld = document.querySelector(".site-tld");
+  const btn = document.getElementById("check");
+  const intro = document.querySelector(".intro-block");
+  const warn = document.getElementById("subject_warn");
+  const nameHint = document.getElementById("dn_hint");
+  const bodyNotes = document.querySelector(".body-notes");
+  const foot = document.querySelector("footer");
+  const ws = getComputedStyle(wm);
+  const ts = getComputedStyle(tld);
+  const bs = getComputedStyle(btn);
+  const ns = getComputedStyle(nameHint);
+  const ys = getComputedStyle(warn);
+  const fontLoaded = document.fonts.check('900 40px "Zen Kaku Gothic New"', '詐欺') && document.fonts.check('500 40px "Zen Kaku Gothic New"', '.com');
+  return {
+    title: document.title,
+    og: document.querySelector('meta[property="og:title"]').content,
+    word: wm.textContent,
+    weight: ws.fontWeight,
+    tldWeight: ts.fontWeight,
+    ink: ws.color,
+    frame: ws.borderTopColor,
+    fill: ws.backgroundColor,
+    btnBg: bs.backgroundColor,
+    btnColor: bs.color,
+    btnBorder: bs.borderTopColor,
+    btnBorderWidth: bs.borderTopWidth,
+    introBg: getComputedStyle(intro).backgroundColor,
+    warnBg: ys.backgroundColor,
+    warnBorder: ys.borderTopWidth,
+    nameBg: ns.backgroundColor,
+    bodyBg: getComputedStyle(bodyNotes).backgroundColor,
+    footBg: getComputedStyle(foot).backgroundColor,
+    footBorder: getComputedStyle(foot).borderTopColor,
+    footBorderWidth: getComputedStyle(foot).borderTopWidth,
+    fontLoaded
+  };
+})()`);
+check("wordmark shows 詐欺メール判定.com", look.word.replace(/\s/g, "") === "詐欺メール判定.com" && look.title.startsWith("詐欺メール判定.com") && look.og === "詐欺メール判定.com", JSON.stringify(look));
+check("wordmark is black Zen Kaku Gothic New 900 inside the green frame", look.fontLoaded === true && (look.weight === "900" || Number(look.weight) >= 900) && /17,\s*17,\s*17/.test(look.ink) && /47,\s*107,\s*79/.test(look.frame) && /250,\s*252,\s*251/.test(look.fill) && (look.tldWeight === "500" || Number(look.tldWeight) === 500), JSON.stringify(look));
+check("judge button is white text-black with a 2px green frame", /255,\s*255,\s*255/.test(look.btnBg) && /17,\s*17,\s*17/.test(look.btnColor) && /47,\s*107,\s*79/.test(look.btnBorder) && look.btnBorderWidth === "2px", JSON.stringify(look));
+check("explanations are beige and cautions are yellow with a 1px frame", /246,\s*237,\s*227/.test(look.introBg) && /248,\s*231,\s*193/.test(look.warnBg) && look.warnBorder === "1px" && look.nameBg === look.warnBg && look.bodyBg === look.warnBg, JSON.stringify(look));
+check("footer is beige with a 2px green top border", /246,\s*237,\s*227/.test(look.footBg) && /47,\s*107,\s*79/.test(look.footBorder) && look.footBorderWidth === "2px", JSON.stringify(look));
+await setViewport(390, 844, true);
+await shot("front-mobile.png");
+await setViewport(1280, 900, false);
 
 await setFields(fixture.clickfix);
 await judge();
@@ -221,7 +272,7 @@ await evaluate(`document.getElementById("clear").click()`);
 const cleared = await evaluate(`(() => ({
   body: document.getElementById("body").value,
   from: document.getElementById("from_email").value,
-  name: "",
+  name: document.getElementById("display_name").value,
   subject: document.getElementById("subject").value,
   linkField: document.getElementById("visible_link_url"),
   result: document.getElementById("result").innerText
@@ -327,7 +378,7 @@ for (const mobile of [false, true]) {
     await setFields(input);
     await judge();
     const view = await resultView();
-    colors[(mobile ? "mobile_" : "desktop_") + name] = { color: view.color, className: view.className, banner: view.banner, headline: view.headline };
+    colors[(mobile ? "mobile_" : "desktop_") + name] = { color: view.color, borderColor: view.borderColor, className: view.className, banner: view.banner, headline: view.headline };
     check(name + (mobile ? " mobile" : " desktop") + " tone class", view.className.includes("v-" + input.tone), view.className + " " + view.color);
     if (name === "no_clear_signal") check("no_clear has the safety banner", view.banner === true);
     if (name === "insufficient") check("insufficient has no safety banner", view.banner === false);
@@ -335,8 +386,8 @@ for (const mobile of [false, true]) {
     await evaluate(`document.getElementById("clear").click()`);
   }
 }
-check("strong is red and review is not the same color", colors.desktop_strong_suspicion.color !== colors.desktop_needs_review.color && /176,\s*0,\s*0|178,\s*0,\s*0|b00000/i.test(colors.desktop_strong_suspicion.color), JSON.stringify(colors.desktop_strong_suspicion));
-check("no_clear headline is grey", /51,\s*51,\s*51/.test(colors.desktop_no_clear_signal.color), colors.desktop_no_clear_signal.color);
+check("strong frame is red, review frame is amber, and headlines stay black", /176,\s*0,\s*0/.test(colors.desktop_strong_suspicion.borderColor) && /138,\s*82,\s*0/.test(colors.desktop_needs_review.borderColor) && /17,\s*17,\s*17/.test(colors.desktop_strong_suspicion.color) && /17,\s*17,\s*17/.test(colors.desktop_needs_review.color), JSON.stringify(colors.desktop_strong_suspicion) + " " + JSON.stringify(colors.desktop_needs_review));
+check("no_clear headline is black and the frame is grey", /17,\s*17,\s*17/.test(colors.desktop_no_clear_signal.color) && /85,\s*85,\s*85/.test(colors.desktop_no_clear_signal.borderColor), JSON.stringify(colors.desktop_no_clear_signal));
 
 const secrets = fixture.secrets;
 const leaked = net.filter((r) => secrets.some((s) => (r.url + "\n" + r.postData).includes(s)));
