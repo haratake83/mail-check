@@ -8,6 +8,7 @@
 //   node tools/browser-audit.mjs --out /tmp/mail-check-audit
 //
 // 依存パッケージは不要です。Chrome の DevTools プロトコルを使います。
+import weeklyHandler from "../api/weekly-rank.mjs";
 import { spawn, execSync } from "child_process";
 import { createServer } from "http";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync, createReadStream } from "fs";
@@ -33,6 +34,15 @@ const types = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=
 let domainAgeReply = { status: "unavailable" };
 const site = createServer(async (req, res) => {
   const url = new URL(req.url, "http://127.0.0.1");
+  if ((req.method === "GET" || req.method === "POST") && url.pathname === "/api/weekly-rank") {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const raw = Buffer.concat(chunks).toString("utf8");
+    let body = null;
+    if (raw) { try { body = JSON.parse(raw); } catch { body = raw; } }
+    await weeklyHandler({ method: req.method, headers: req.headers, body }, res);
+    return;
+  }
   if (req.method === "POST" && url.pathname === "/api/domain-created") {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
@@ -445,7 +455,12 @@ async function showAge(ageDays) {
 }
 const band1 = await showAge(30);
 check("30-day caution is visible and is not a scam verdict", band1.shown === true && band1.detail.mild === false && /248,\s*231,\s*193/.test(band1.detail.bg) && band1.detail.border === "1px" && band1.detail.text.includes(band1.createdJa) && band1.detail.text.includes("30日以内") && band1.detail.text.includes("しっかりと確認が必要です。※詐欺と確定したことにはなりません。") && !band1.detail.text.includes("このメールは詐欺です") && !band1.detail.text.includes("可能性が高い") && !band1.detail.text.includes("不審") && !band1.detail.text.includes("信頼性が低い") && band1.view.className.includes("v-grey") && band1.view.headline.includes("判断できませんでした"), band1.detail.text.slice(0, 180) + " / " + band1.detail.bg);
-check("the lookup post is only the registrable domain", band1.posts.length === 1 && band1.posts[0].postData === "{\"domain\":\"example.com\"}" && !band1.posts[0].postData.includes("@") && !band1.posts[0].postData.includes("yamada") && !band1.posts[0].postData.includes("山田") && !band1.posts[0].postData.includes("重要") && !band1.posts[0].postData.includes("secret-path"), JSON.stringify(band1.posts));
+check("the lookup post is only the registrable domain", band1.posts.length === 2 && band1.posts.every((r) => {
+  const path = new URL(r.url).pathname;
+  const data = JSON.parse(r.postData || "");
+  const keys = Object.keys(data);
+  return (path === "/api/domain-created" || path === "/api/weekly-rank") && keys.length === 1 && data.domain === "example.com" && !r.postData.includes("@") && !r.postData.includes("yamada") && !r.postData.includes("山田") && !r.postData.includes("重要") && !r.postData.includes("secret-path");
+}), JSON.stringify(band1.posts));
 await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
 await shot("domain-age-band1-desktop.png", false);
 await setViewport(390, 844, true);
@@ -477,13 +492,14 @@ const posts = net.filter((r) => r.method === "POST");
 function domainPostOnly(r) {
   try {
     const u = new URL(r.url);
-    if (u.pathname !== "/api/domain-created") return false;
+    if (u.pathname !== "/api/domain-created" && u.pathname !== "/api/weekly-rank") return false;
     const data = JSON.parse(r.postData || "");
     const keys = Object.keys(data);
-    return keys.length === 1 && keys[0] === "domain" && data.domain === "example.com" && !String(r.postData).includes("@");
+    const allowed = { domain: 1, genre: 1, content: 1 };
+    return keys.length >= 1 && keys.every((key) => allowed[key]) && data.domain === "example.com" && !String(r.postData).includes("@");
   } catch (e) { return false; }
 }
-check("POSTs are only the registrable domain", posts.length > 0 && posts.every(domainPostOnly), JSON.stringify(posts.map((r) => ({ url: r.url, postData: r.postData }))).slice(0, 500));
+check("POSTs are only the registrable domain", posts.length > 0 && posts.every(domainPostOnly), JSON.stringify(posts.map((r) => ({ url: r.url, postData: r.postData }))).slice(0, 800));
 function hostOf(url) { try { return new URL(url).host; } catch (e) { return ""; } }
 const foreign = net.filter((r) => {
   if (!r.url || /^(data|blob|about|chrome|chrome-extension):/.test(r.url)) return false;
@@ -493,7 +509,7 @@ check("network hosts stay on the local audit server", foreign.length === 0, JSON
 const typesSeen = {};
 net.forEach((r) => { typesSeen[r.type || r.when || "unknown"] = (typesSeen[r.type || r.when || "unknown"] || 0) + 1; });
 
-const sourceFiles = ["js/judge.js", "js/ui.js", "js/domain-age.js", "js/protocol-data.js", "index.html"];
+const sourceFiles = ["js/judge.js", "js/ui.js", "js/domain-age.js", "js/weekly-rank.js", "js/protocol-data.js", "index.html"];
 const sourceIndicators = [];
 const indicatorRe = /fetch\s*\(|new\s+Image\s*\(|import\s*\(|sendBeacon\s*\(|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB/g;
 for (const rel of sourceFiles) {
@@ -501,7 +517,9 @@ for (const rel of sourceFiles) {
   const hits = text.match(indicatorRe) || [];
   if (hits.length) sourceIndicators.push({ file: rel, hits });
 }
-check("the only browser network API is the domain lookup", sourceIndicators.length === 1 && sourceIndicators[0].file === "js/domain-age.js" && sourceIndicators[0].hits.join(",") === "fetch(", JSON.stringify(sourceIndicators));
+const ageSrc = readFileSync(path.join(root, "js/domain-age.js"), "utf8");
+const weekSrc = readFileSync(path.join(root, "js/weekly-rank.js"), "utf8");
+check("browser network calls stay on the two same-origin endpoints", sourceIndicators.length === 2 && sourceIndicators.every((s) => s.hits.length === 1 && s.hits[0] === "fetch(") && ageSrc.includes('fetch(ENDPOINT') && ageSrc.includes('"/api/domain-created"') && weekSrc.includes('fetch(ENDPOINT') && weekSrc.includes('"/api/weekly-rank"') && !weekSrc.includes("rdap.org"), JSON.stringify(sourceIndicators));
 
 const report = {
   measured_at_jst: new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace("Z", "+09:00"),

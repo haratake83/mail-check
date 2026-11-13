@@ -168,6 +168,23 @@ p.lead { margin: 0 0 0.7em; }
   background: var(--beige);
   border: 1px solid var(--beige-line);
 }
+.weekly-rankings { margin: 14px 0 8px; }
+.weekly-rank-note,
+.weekly-rank {
+  background: var(--beige);
+  border: 1px solid var(--beige-line);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 10px 12px;
+  margin: 0 0 10px;
+}
+.weekly-rank h2 { font-size: 1rem; margin: 0 0 8px; color: var(--ink); }
+.weekly-rank-list { list-style: none; margin: 0; padding: 0; }
+.weekly-rank-list li { display: flex; gap: 8px; align-items: baseline; margin: 4px 0; }
+.rank-pos { font-weight: 700; min-width: 3.2em; }
+.rank-label { flex: 1; overflow-wrap: anywhere; }
+.rank-count { white-space: nowrap; }
+.weekly-rank-empty { margin: 0; }
 .draft-notice { padding: 10px 12px; font-weight: 700; }
 .safety-banner {
   border-width: 2px;

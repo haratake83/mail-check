@@ -224,7 +224,7 @@ check("GET is refused", get.statusCode === 405 && seen.length === 0);
 const ok = mockRes();
 await handler(sameOriginReq({ domain: "Example.COM" }), ok);
 check("handler returns only the date and age", ok.statusCode === 200 && JSON.stringify(ok.payload) === JSON.stringify({ created: "2026-10-15", age_days: 29 }) && seen.every(function (u) { return u.indexOf("@") < 0 && u.indexOf("victim") < 0; }));
-check("same origin check matches host", isSameOrigin({ host: "mail.example", origin: "https://mail.example", "sec-fetch-site": "same-origin" }) === true && isSameOrigin({ host: "mail.example", origin: "https://evil.example" }) === false);
+check("same origin check matches host", isSameOrigin({ host: "mail.example", origin: "https://mail.example", "sec-fetch-site": "same-origin" }) === true && isSameOrigin({ host: "mail.example", origin: "https://evil.example" }) === false && isSameOrigin({ host: "mail.example", "sec-fetch-site": "same-origin" }) === true && isSameOrigin({ host: "mail.example" }) === false);
 
 const again = mockRes();
 await handler(sameOriginReq({ domain: "example.com" }), again);
@@ -317,8 +317,8 @@ check("ui does not fetch by itself", !ui.includes("fetch(") && !ui.includes("rda
 check("caution uses the yellow 1px note", css.includes(".domain-age-note") && css.includes("border: 1px solid var(--warn-line)") && !/\.domain-age-note\s*\{[^}]*border-width:\s*2px/.test(css));
 check("older bands use the beige 1px note", css.includes(".domain-age-note.domain-age-mild") && css.includes("background: var(--beige)") && css.includes("border: 1px solid var(--beige-line)") && !/\.domain-age-mild\s*\{[^}]*border-width:\s*2px/.test(css));
 check("csp keeps form-action none and connect-src self", csp.includes("form-action 'none'") && csp.includes("connect-src 'self'") && !csp.includes("connect-src 'none'") && !csp.includes("rdap.org"));
-check("privacy names the domain lookup and not collection", html.includes("登録ドメイン") && html.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("ドメインは現在どこにも集めていません") && html.includes("表示 v0.10.4") && html.includes("判定プロトコル v0.10"));
-check("privacy says the date is kept for 7 days only", html.includes("最大7日間") && html.includes("統計、履歴、公開の一覧には使いません") && html.includes("登録者の名前や連絡先は残しません") && !html.includes("送ったドメインと取得日は保存せず"));
+check("privacy names the domain lookup and not collection", html.includes("登録ドメイン") && html.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("表示 v0.10.5") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.4"));
+check("privacy says the date is kept for 7 days only", html.includes("最大7日間") && html.includes("この取得日は、統計、履歴、公開の一覧、週間ランキングには使いません。") && html.includes("登録者の名前や連絡先は残しません") && !html.includes("送ったドメインと取得日は保存せず"));
 check("protocol version is unchanged", fs.readFileSync(path.join(root, "js/protocol-data.js"), "utf8").includes('version: "v0.10"'));
 
 const apiSrc = fs.readFileSync(path.join(root, "api/domain-created.mjs"), "utf8");

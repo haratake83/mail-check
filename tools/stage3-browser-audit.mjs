@@ -90,7 +90,7 @@ await evaluate(`document.getElementById("terms_agree").scrollIntoView({ block: "
 await shot("v092_consent_mobile.png", false);
 await evaluate(`document.getElementById("privacy_detail").scrollIntoView({ block: "end" })`);
 await shot("v092_privacy_plan_mobile.png", false);
-check("plain privacy text is on the form", (await evaluate(`document.getElementById("privacy_detail").innerText`)).includes("本文やURLが当サイトに送られたり、保存されたりすることはありません") && (await evaluate(`document.getElementById("privacy_plan").innerText`)).includes("現在どこにも集めていません") && (await evaluate(`document.getElementById("terms_agree").innerText`)).includes("利用規約に同意したものとみなします"));
+check("plain privacy text is on the form", (await evaluate(`document.getElementById("privacy_detail").innerText`)).includes("本文やURLが当サイトに送られたり、保存されたりすることはありません") && (await evaluate(`document.getElementById("privacy_plan").innerText`)).includes("週間ランキングのために送るのは") && (await evaluate(`document.getElementById("terms_agree").innerText`)).includes("利用規約に同意したものとみなします"));
 check("separate link field is absent", (await evaluate(`document.getElementById("visible_link_url") === null && document.body.innerText.includes("本文に含まれるリンクだけを文字列として調べ、開きません")`)) === true);
 await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await shot("stage3_form_hidden_desktop.png");
@@ -146,10 +146,11 @@ await shot("v093_subject_mobile.png", false);
 function domainPostOnly(r) {
   try {
     const u = new URL(r.url);
-    if (u.pathname !== "/api/domain-created" || u.host !== new URL(origin).host) return false;
+    if ((u.pathname !== "/api/domain-created" && u.pathname !== "/api/weekly-rank") || u.host !== new URL(origin).host) return false;
     const data = JSON.parse(r.postData || "");
     const keys = Object.keys(data);
-    return keys.length === 1 && keys[0] === "domain" && data.domain === "example.com" && !String(r.postData).includes("@");
+    const allowed = { domain: 1, genre: 1, content: 1 };
+    return keys.length >= 1 && keys.every((key) => allowed[key]) && data.domain === "example.com" && !String(r.postData).includes("@");
   } catch (e) { return false; }
 }
 check("mail text is not posted", net.every((r) => r.method === "GET" || domainPostOnly(r)) && net.some((r) => r.method === "POST") && net.every((r) => !(r.postData || "").includes("ギフト") && !(r.postData || "").includes("山田") && !(r.postData || "").includes("<img") && !(r.postData || "").includes("@")));

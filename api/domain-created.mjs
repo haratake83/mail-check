@@ -279,7 +279,8 @@ export function isSameOrigin(headers) {
   const site = header(headers, "sec-fetch-site").trim().toLowerCase();
   if (site && site !== "same-origin") return false;
   const origin = header(headers, "origin").trim();
-  if (!origin || !host) return false;
+  if (!host) return false;
+  if (!origin) return site === "same-origin";
   let u;
   try { u = new URL(origin); } catch (e) { return false; }
   if (u.protocol !== "https:" && u.protocol !== "http:") return false;

@@ -86,6 +86,10 @@
       var ageGen = gen;
       window.MH_DOMAIN_AGE.attach($("from_email").value, function () { return ageGen === generation; });
     }
+    if (window.MH_WEEKLY && window.MH_DOMAIN_AGE) {
+      var rankPlan = window.MH_DOMAIN_AGE.planLookup($("from_email").value);
+      if (rankPlan) window.MH_WEEKLY.record({ domain: rankPlan.body.domain, genre: radio("sender_genre"), content: radio("mail_content") });
+    }
   });
 
   function renderFailure() {

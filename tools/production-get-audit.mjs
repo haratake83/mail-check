@@ -59,10 +59,11 @@ const leaked = net.filter((r) => (r.url + "\n" + r.postData).includes(marker));
 function domainPostOnly(r) {
   try {
     const u = new URL(r.url);
-    if (!u.pathname.endsWith("/api/domain-created")) return false;
+    if (!u.pathname.endsWith("/api/domain-created") && !u.pathname.endsWith("/api/weekly-rank")) return false;
     const data = JSON.parse(r.postData || "");
     const keys = Object.keys(data);
-    return keys.length === 1 && keys[0] === "domain" && typeof data.domain === "string" && !data.domain.includes("@") && !String(r.postData).includes(marker);
+    const allowed = { domain: 1, genre: 1, content: 1 };
+    return keys.length >= 1 && keys.every((key) => allowed[key]) && typeof data.domain === "string" && !data.domain.includes("@") && !String(r.postData).includes(marker);
   } catch (e) { return false; }
 }
 const methods = [...new Set(net.map((r) => r.method))];
