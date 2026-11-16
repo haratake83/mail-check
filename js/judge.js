@@ -828,6 +828,41 @@
       fromWeak = fromFree || fromUnrel;
     }
     if (ch === "email" && !sender) fromWeak = true;
+    // よく見られる手口。名前や語句だけでは危険度を上げない。
+    // 公式の送信元（台帳の送信元・ウェブと一致）では出さない。unknown は不一致にしない。
+    // 「こちら」「下記」だけではリンク扱いしない。本文の実リンクか、ファイルへの誘導があるときだけ。
+    // 危険度を上げる R01 は、送信元が不一致のときだけ、medium まで。
+    var campOfficial = fromRel && ["send_matched", "web_aligned"].indexOf(fromRel.rel) >= 0;
+    var campHit = false;
+    var campNote = "";
+    var campLead = "";
+    if (!campOfficial) {
+      var campRaw = (input.body || "") + "\n" + (input.display_name || "");
+      var campN = nfkc(campRaw).replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\u00AD\uFEFF\s　]/g, "");
+      var campThemes = [];
+      if (/(ポイント|コイン).{0,20}失効|失効.{0,20}(ポイント|コイン)/.test(campN)) campThemes.push("ポイントやコインの失効");
+      if (/(未決済|支払[い]?手続[き]?未完了|更新手続[き]?が完了できませんでした)/.test(campN)) campThemes.push("支払い・更新の未完了");
+      if (/不正ログイン/.test(campN)) campThemes.push("不正ログインの知らせ");
+      if (/不正利用/.test(campN)) campThemes.push("不正利用の知らせ");
+      if (/還付金/.test(campN) && /(振込|振り込み)/.test(campN) && /(エラー|失敗|不能|できません)/.test(campN)) campThemes.push("還付金の振り込みエラー");
+      if (/住宅借入金等特別控除証明書/.test(campN)) campThemes.push("住宅借入金等特別控除証明書の案内");
+      if (/お届け荷物のお預かり|荷物のお預かり/.test(campN)) campThemes.push("荷物のお預かり");
+      if (/ご利用可能額|利用可能額の知/.test(campN)) campThemes.push("カードのご利用可能額の知らせ");
+      if (campThemes.length) {
+        var campFile = /(ダウンロード|ファイル|添付|開いてください|\.(pdf|zip|exe|docm|xlsm|scr)\b)/i.test(campRaw);
+        var campUrl = urls.some(function (u) { return u.source === "body"; });
+        if (campFile || campUrl) {
+          campHit = true;
+          campLead = campThemes.join("、") + "が広く見られる手口と一致します。しっかりと確認が必要です。※詐欺と確定したことにはなりません。";
+          campNote = campLead + "本文のリンクやファイルは開かず、公式アプリやブックマークから確認してください。";
+          var campMismatch = fromRel && ["unrelated", "typo", "free", "related", "other_entity"].indexOf(fromRel.rel) >= 0;
+          if (campMismatch) addEv("R01", "F_other", "campaign:" + campThemes[0], "medium", false, campNote);
+        }
+      }
+    }
+    res.campaign_review = campHit;
+    res.campaign_note = campNote;
+    res.campaign_lead = campLead;
     var hasA11 = ev.some(function (e) { return e.rule_id === "A11"; });
     var routineGuard = routine && senderAligned && !fromTypo && !f.A01x && !f.reply_secret && !hasA11;
     f.routine_guard = routineGuard;
@@ -983,14 +1018,18 @@
     if (r.verdict === "strong_suspicion") {
       d.tone = "red"; d.headline = "詐欺" + M + "の疑いが強いです";
       d.body = "詐欺" + M + "によく見られる強い特徴があります。" + M + "内のリンク・電話番号・添付ファイルは使わず、公式アプリやブックマークから直接確認してください。";
+      if (r.campaign_review) d.body = (r.campaign_lead || "") + d.body;
       if (r.input_issues.length) d.notes.push("入力に不足があります（" + issueText(r.input_issues, ch).join("、") + "）。");
     } else if (r.verdict === "needs_review") {
       d.tone = "yellow"; d.headline = "注意が必要です（要確認）";
-      d.body = "本物かどうか確認が必要です。" + M + "内のリンクからではなく、公式アプリやブックマークした公式サイトで同じ通知があるか確認してください。";
+      d.body = r.campaign_review
+        ? (r.campaign_lead || "") + M + "内のリンクからではなく、公式アプリやブックマークした公式サイトで同じ通知があるか確認してください。"
+        : "本物かどうか確認が必要です。" + M + "内のリンクからではなく、公式アプリやブックマークした公式サイトで同じ通知があるか確認してください。";
     } else if (r.verdict === "no_clear_signal") {
       d.tone = "grey"; d.headline = "このツールでは判断できませんでした。公式アプリやブックマークから直接確認してください";
       d.banner = "安全ではありません。" + M + "内のリンクは開かず、公式アプリやブックマークから直接確認してください。";
       d.body = "これは詐欺と確定した意味でも、安全と確認できた意味でもありません。送信元の偽装やリンクの本当の行き先を確認できず、特徴が出ない詐欺もあります。";
+      if (r.campaign_review) d.body = (r.campaign_lead || "") + d.body;
     } else {
       d.tone = "grey"; d.headline = "情報が足りず判定できません";
       d.body = "メールに記載されたアドレス（@を含む全体）と本文を確認してください。メール内のリンクは開かないでください。";
@@ -1006,6 +1045,9 @@
     var auxNote = { B01: "お金に関する言葉があります。これだけでは詐欺とは断定しません。", B02: "リンクやボタンの案内があります。", B03: "宛名がありません。" };
     if (r.danger_level === "W" && r.verdict === "needs_review") {
       (r.auxiliary_flags || []).forEach(function (k) { if (k !== "B08" && auxNote[k] && d.reasons.indexOf(auxNote[k]) < 0) d.reasons.push(auxNote[k]); });
+    }
+    if (r.campaign_review && r.campaign_note && !d.reasons.some(function (n) { return n.indexOf("しっかりと確認が必要です") >= 0; })) {
+      d.reasons.unshift(r.campaign_note);
     }
     if ((r.unknowns || []).indexOf("unlisted_brand_claim") >= 0 && (r.evidence || []).length) {
       d.notes.push("名乗っている名前は、このツールの台帳では確認できない相手です。未掲載は公式でも非公式でも断定できません。");

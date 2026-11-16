@@ -6,7 +6,7 @@ License URI: https://www.gnu.org/licenses/gpl-2.0.html
 */
 
 /* Design tokens
-   --navy       #224C9E  ヘッダーロゴ「詐欺メールチェック」の字の実色。枠と下端の案内リンク。
+   --navy       #224C9E  ヘッダーロゴ「詐欺メール判定」の字の実色。枠と下端の案内リンク。
    --logo-green #2EAC6F  ロゴの虫眼鏡と「.com」の実色。判定ボタンの枠。
    --frame      3px solid var(--navy)  旧い肌色ブロックの枠。
    --sky        #E6F4FB  旧い黄色背景の代わりの薄い水色。
@@ -239,6 +239,14 @@ a.privacy-page-link {
 .weekly-rankings .weekly-rank + .weekly-rank,
 .weekly-rankings .weekly-rank-note {
   margin-top: 18px;
+}
+/* ドメインページだけ、サーバーが hidden を外して中身を入れる。静的サイトでは空。 */
+#domain-page-info {
+  background: #fff;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  color: var(--ink);
 }
 .weekly-rank-note { font-size: var(--body-text); }
 .weekly-rank h2 { font-size: 1rem; margin: 0 0 8px; color: var(--ink); }

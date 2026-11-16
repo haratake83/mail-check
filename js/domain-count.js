@@ -1,6 +1,7 @@
 /* 判定回数。判定のあと、登録ドメインだけを同一オリジンへ送る。
  * 正規化は取得日の照会と同じ。メールアドレス、名前、件名、本文、URLは送らない。
- * 回数は判定区分を変えない。取れないとき、5回未満のときは、何も足さない。 */
+ * total は全期間の回数。5回以上のときだけ、1日・1週間・1ヶ月・半年・1年をすべて出す。
+ * 回数は判定区分を変えない。除外ドメイン、取れないとき、5回未満のときは、何も足さない。 */
 (function (g) {
   "use strict";
   var ENDPOINT = "/api/domain-count";
@@ -14,6 +15,7 @@
     if (!planned || !planned.body || typeof planned.body.domain !== "string") return null;
     var domain = planned.body.domain;
     if (!domain || domain.indexOf("@") >= 0) return null;
+    if (g.MH_DOMAIN_EXCLUSIONS && g.MH_DOMAIN_EXCLUSIONS.isExcludedDomain(domain)) return null;
     return { url: ENDPOINT, method: "POST", body: { domain: domain } };
   }
 

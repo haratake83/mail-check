@@ -15,7 +15,7 @@
 <header class="site-header">
   <div class="site-header-inner">
     <!-- ここはサイトのヘッダーです -->
-    <h1 class="site-title"><a class="site-wordmark" href="index.html"><img src="img/sagi-mail-check-logo.png" alt="詐欺メールチェック.com" width="1552" height="369"></a></h1>
+    <h1 class="site-title"><a class="site-wordmark" href="index.html"><img src="img/sagi-mail-check-logo.png" alt="詐欺メール判定.com" width="1552" height="369"></a></h1>
   </div>
 </header>
 <main class="site-main" id="content">
@@ -135,6 +135,8 @@
         <h2>週間判定ドメインランキング</h2>
         <div id="rank_domains"></div>
       </section>
+      <!-- ドメインページ専用の欄（サーバー側で中身を入れる） -->
+      <section id="domain-page-info" class="weekly-rank" hidden></section>
       <section class="weekly-rank">
         <!-- ここは週間判定ジャンルランキングの欄です -->
         <h2>週間判定ジャンルランキング</h2>
@@ -148,12 +150,12 @@
       <p class="weekly-rank-note">直近7日間に、10回以上判定されたものを、多い順に最大10件まで掲載します。よく判定に使われたという情報であり、詐欺であることも、安全であることも意味しません。</p>
     </div>
     <!-- ここは版表示の欄です -->
-    <p class="body-notes">表示 v0.10.6／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／本文の判定はブラウザ内／取得日の照会、判定回数、週間ランキング／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p class="body-notes">表示 v0.10.7／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／本文の判定はブラウザ内／取得日の照会、判定回数、週間ランキング／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a class="terms-public" href="terms.html" hidden>利用規約（下書き）</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
     <nav class="guide-links" aria-label="解説ページ">
       <!-- ここは解説ページへの案内の欄です -->
-      <a href="about.html">詐欺メールチェック.comとは？</a>
+      <a href="about.html">詐欺メール判定.comとは？</a>
       <a href="privacy.html">プライバシーポリシー</a>
       <a href="guides/how-to-spot.html">詐欺メールの見分け方・特徴</a>
       <a href="guides/if-you-opened.html">怪しいメールのリンクを開いてしまったら</a>
@@ -168,6 +170,7 @@
 <script src="js/flags.js"></script>
 <script src="js/protocol-data.js"></script>
 <script src="js/judge.js"></script>
+<script src="js/domain-exclusions.js"></script>
 <script src="js/domain-age.js"></script>
 <script src="js/domain-count.js"></script>
 <script src="js/weekly-rank.js"></script>

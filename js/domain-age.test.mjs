@@ -318,7 +318,7 @@ check("ui does not fetch by itself", !ui.includes("fetch(") && !ui.includes("rda
 check("caution uses the sky 1px note", css.includes(".domain-age-note") && css.includes("border: 1px solid var(--sky-line)") && css.includes("--sky: #E6F4FB") && !/\.domain-age-note\s*\{[^}]*border-width:\s*2px/.test(css));
 check("older bands use a white note with a thick navy frame", css.includes(".domain-age-note.domain-age-mild") && /domain-age-mild\s*\{[^}]*background:\s*#fff/.test(css) && /domain-age-mild\s*\{[^}]*border:\s*var\(--frame\)/.test(css) && !/\.domain-age-mild\s*\{[^}]*border-width:\s*2px/.test(css));
 check("csp keeps form-action none and connect-src self", csp.includes("form-action 'none'") && csp.includes("connect-src 'self'") && !csp.includes("connect-src 'none'") && !csp.includes("rdap.org"));
-check("privacy names the domain lookup and not collection", privacy.includes("登録ドメイン") && privacy.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("表示 v0.10.6") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.5"));
+check("privacy names the domain lookup and not collection", privacy.includes("登録ドメイン") && privacy.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("表示 v0.10.7") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.6"));
 check("privacy says the date is kept for 7 days only", privacy.includes("最大7日間") && privacy.includes("この取得日は、統計、履歴、公開の一覧、週間ランキングには使いません。") && privacy.includes("登録者の名前や連絡先は残しません") && !privacy.includes("送ったドメインと取得日は保存せず"));
 check("protocol version is unchanged", fs.readFileSync(path.join(root, "js/protocol-data.js"), "utf8").includes('version: "v0.10"'));
 

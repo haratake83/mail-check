@@ -9,6 +9,7 @@
   function recordBody(input) {
     var domain = input && input.domain;
     if (typeof domain !== "string" || !domain || domain.indexOf("@") >= 0) return null;
+    if (g.MH_DOMAIN_EXCLUSIONS && g.MH_DOMAIN_EXCLUSIONS.isExcludedDomain(domain)) return null;
     var body = { domain: domain };
     if (input.genre && GENRE[input.genre]) body.genre = input.genre;
     if (input.content && CONTENT[input.content]) body.content = input.content;
@@ -39,6 +40,7 @@
       if (!row || typeof row.count !== "number") return;
       var label = row.label || labelFor(kind, row.key);
       if (!label || label.indexOf("@") >= 0) return;
+      if (kind === "domain" && g.MH_DOMAIN_EXCLUSIONS && g.MH_DOMAIN_EXCLUSIONS.isExcludedDomain(label)) return;
       list.push({ label: label, count: row.count });
     });
     if (!list.length) {

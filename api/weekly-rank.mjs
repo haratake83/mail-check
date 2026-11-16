@@ -2,7 +2,12 @@
 // 残すのは登録ドメインと、選択されたジャンル・内容の回数だけ。メールアドレスは残さない。
 import net from "node:net";
 import tls from "node:tls";
+import { createRequire } from "node:module";
 import { normalizeDomain, isSameOrigin } from "./domain-created.mjs";
+
+const require = createRequire(import.meta.url);
+require("../js/domain-exclusions.js");
+const isExcludedDomain = globalThis.MH_DOMAIN_EXCLUSIONS.isExcludedDomain;
 
 export const WEEK_MS = 7 * 86400000;
 export const MIN_COUNT = 10;
@@ -74,6 +79,7 @@ export function rankRows(events, kind, labelOf) {
     if (count < MIN_COUNT) return;
     const label = labelOf(key);
     if (!label || label.indexOf("@") >= 0) return;
+    if (kind === "domain" && isExcludedDomain(key)) return;
     rows.push({ key: key, label: label, count: count });
   });
   rows.sort(function (a, b) {
@@ -101,6 +107,7 @@ export function judgmentEvents(input, at) {
   const host = normalizeDomain(input.domain);
   const domain = host ? toRegistrable(host) : "";
   if (!domain || domain.indexOf("@") >= 0) return null;
+  if (isExcludedDomain(domain)) return null;
   if (input.genre != null && input.genre !== "" && !GENRE_LABELS[input.genre]) return null;
   if (input.content != null && input.content !== "" && !CONTENT_LABELS[input.content]) return null;
   const events = [{ kind: "domain", key: domain, at: at }];
