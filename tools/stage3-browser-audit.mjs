@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // 注意度と利用規約のローカル監査。本番・プレビューは見ない。
-// 判定後の POST は、登録ドメインを /api/domain-created へ送るものだけを許す。
+// 判定後の POST は、登録ドメインを /api/domain-created と /api/domain-count へ、
+// 週間ランキングを /api/weekly-rank へ送るものだけを許す。
 // node tools/stage3-browser-audit.mjs
 import { spawn, execSync } from "child_process";
 import { createServer } from "http";
@@ -73,7 +74,7 @@ async function shot(name, beyond) {
   writeFileSync(path.join(outDir, name), Buffer.from(pic.data, "base64"));
 }
 async function judge(body) {
-  await evaluate(`document.getElementById("from_email").value = "notice@example.com"; document.getElementById("body").value = ${JSON.stringify(body)}; document.getElementById("check").click();`);
+  await evaluate(`document.getElementById("from_email").value = "notice@example.com"; document.getElementById("body").value = ${JSON.stringify(body)}; const genre = document.querySelector('input[name="sender_genre"][value="other"]'); const content = document.querySelector('input[name="mail_content"][value="other"]'); if (genre) genre.checked = true; if (content) content.checked = true; document.getElementById("check").click();`);
   await evaluate(`new Promise((resolve) => { const t = setInterval(() => { if (document.querySelector("#result.show")) { clearInterval(t); resolve(true); } }, 20); })`);
 }
 const failures = [];
@@ -117,7 +118,7 @@ await shot("stage3_dash_mobile.png");
 
 await send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 await go(origin + "/");
-await evaluate(`document.getElementById("from_email").value = ""; document.getElementById("body").value = "ギフトカードの番号を送ってください。"; document.getElementById("check").click();`);
+await evaluate(`document.getElementById("from_email").value = ""; document.getElementById("body").value = "ギフトカードの番号を送ってください。"; const genre = document.querySelector('input[name="sender_genre"][value="other"]'); const content = document.querySelector('input[name="mail_content"][value="other"]'); if (genre) genre.checked = true; if (content) content.checked = true; document.getElementById("check").click();`);
 await evaluate(`new Promise((resolve) => { const t = setInterval(() => { if (document.querySelector("#result.show")) { clearInterval(t); resolve(true); } }, 20); })`);
 text = await evaluate(`document.getElementById("result").innerText`);
 check("missing from stays insufficient and leads with the caution", text.includes("入力が足りませんが、注意すべき特徴があります") && text.includes("情報が足りず判定できません") && !text.includes("注意度"), text.slice(0, 280));
@@ -137,7 +138,7 @@ await shot("stage3_terms_mobile.png");
 await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
 await go(origin + "/");
 const beforeImages = await evaluate(`document.images.length`);
-await evaluate(`document.getElementById("from_email").value = "notice@example.com"; document.getElementById("subject").value = "<img src=x onerror=alert(1)>" + "あ".repeat(90); document.getElementById("body").value = "山田様、本日の連絡です。"; document.getElementById("check").click();`);
+await evaluate(`document.getElementById("from_email").value = "notice@example.com"; document.getElementById("subject").value = "<img src=x onerror=alert(1)>" + "あ".repeat(90); document.getElementById("body").value = "山田様、本日の連絡です。"; const genre = document.querySelector('input[name="sender_genre"][value="other"]'); const content = document.querySelector('input[name="mail_content"][value="other"]'); if (genre) genre.checked = true; if (content) content.checked = true; document.getElementById("check").click();`);
 await evaluate(`new Promise((resolve) => { const t = setInterval(() => { if (document.querySelector("#result.show .summary-subject")) { clearInterval(t); resolve(true); } }, 20); })`);
 const shown = await evaluate(`document.querySelector("#result .summary-subject").textContent`);
 const historyShown = await evaluate(`document.getElementById("history_subject").textContent`);
@@ -148,7 +149,7 @@ await shot("v093_subject_mobile.png", false);
 function domainPostOnly(r) {
   try {
     const u = new URL(r.url);
-    if ((u.pathname !== "/api/domain-created" && u.pathname !== "/api/weekly-rank") || u.host !== new URL(origin).host) return false;
+    if ((u.pathname !== "/api/domain-created" && u.pathname !== "/api/weekly-rank" && u.pathname !== "/api/domain-count") || u.host !== new URL(origin).host) return false;
     const data = JSON.parse(r.postData || "");
     const keys = Object.keys(data);
     const allowed = { domain: 1, genre: 1, content: 1 };

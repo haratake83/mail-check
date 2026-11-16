@@ -22,7 +22,7 @@ function check(name, cond, detail) {
   console.log("FAIL  " + name + (detail ? " :: " + detail : ""));
 }
 function run(extra) {
-  return judge(Object.assign({ display_name: "", from_email: "notice@example.com", body: "山田様、本日の連絡です。", context_answer: "unknown", channel: "email", visible_link_url: "" }, extra));
+  return judge(Object.assign({ display_name: "", from_email: "notice@example.com", body: "山田様、本日の連絡です。", channel: "email", visible_link_url: "" }, extra));
 }
 const index = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const ui = fs.readFileSync(path.join(root, "js/ui.js"), "utf8");
@@ -34,7 +34,7 @@ const pub = [index, ui, terms, list, fs.readFileSync(path.join(root, "js/judge.j
 check("T-M1 no absolute non-send claim", !pub.includes("どこにも送信されません") && !pub.includes("入力内容はどこにも送信されません"));
 const click = run({ body: "エラーを解消するため、powershell を貼り付けて実行してください。" });
 check("T-M2 clickfix lead is ahead of the grey verdict", click.display.lead && click.verdict === "no_clear_signal" && click.danger_level === "N");
-const combo = run({ display_name: "Amazon", from_email: "notice@amaz0n.example", body: "山田様、https://amaz0n.example/login で再認証してください。", context_answer: "yes" });
+const combo = run({ display_name: "Amazon", from_email: "notice@amaz0n.example", body: "山田様、https://amaz0n.example/login で再認証してください。" });
 check("T-M3 strong result keeps the strong verdict", combo.danger_level === "S" && combo.verdict === "strong_suspicion" && !combo.attention);
 check("T-M4 confidence scale row is gone", !ui.includes("判定の確からしさの目安") && ui.includes("この判定方式の精度は未測定です"));
 const gap = run({ from_email: "", body: "ギフトカードの番号を送ってください。" });
@@ -46,7 +46,7 @@ check("T-M10 list link is hidden and the page is future tense", index.includes('
 const unsub = run({ display_name: "ヤマト運輸", from_email: "notice@kuronekoyamato.co.jp", body: "山田様、配信停止のご案内です。" });
 check("T-R1 unsubscribe alone does not raise the level", unsub.auxiliary_flags.indexOf("B08") >= 0 && unsub.danger_level === "N" && unsub.verdict === "no_clear_signal", unsub.danger_level + " " + unsub.verdict + " " + unsub.auxiliary_flags.join(","));
 const ctx = run({ body: "山田様、お支払い500円の受領通知です。", context_answer: "no" });
-check("T-R2 context-only review names its reason", ctx.verdict === "needs_review" && ctx.danger_level === "N" && ctx.display.reasons.indexOf("根拠：心当たりなしの回答のみ") >= 0);
+check("T-R2 a context answer does not change the receipt", ctx.verdict === "no_clear_signal" && ctx.danger_level === "N" && ctx.display.reasons.indexOf("根拠：心当たりなしの回答のみ") < 0 && !JSON.stringify(ctx.display).includes("心当たり"));
 const line = run({ display_name: "架空商事", body: "山田様、公式LINEの友だち追加をお願いします。" });
 check("T-R3 line friend add is separate from a secret request", line.evidence.some((e) => e.rule_id === "A03L") && !line.evidence.some((e) => e.rule_id === "A01" || e.rule_id === "B04") && line.unknowns.indexOf("unlisted_brand_claim") >= 0);
 const phone = run({ body: "山田様、お電話ください。" });

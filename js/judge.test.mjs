@@ -26,19 +26,17 @@ const FIX = {
   redirects: ["~redirect.example"],
   scopedRoutes: [],
 };
-const defaults = { display_name: "", from_email: "notice@member.example", context_answer: "yes", channel: "email", visible_link_url: "" };
+const defaults = { display_name: "", from_email: "notice@member.example", channel: "email", visible_link_url: "" };
 const rows = [
   // ユーザー指定の必須ケース
-  ["U1a_nta_random_demand", { display_name: "国税局", from_email: "no-reply@fail.pfcrz.example", body: "国税局です。山田様、未納の税金があります。本日中に下記URLからお支払いください。支払わない場合は差し押さえを執行します。\nhttps://q7v9z.example/pay", context_answer: "unknown" }, "S", "strong_suspicion"],
-  ["U1b_amazon_random_card_cvv", { display_name: "Amazon", from_email: "no-reply@q7v9z.example", body: "Amazonサポートです。お客様のアカウントが停止されます。今すぐ https://short.example/x からカード番号とセキュリティコードを入力してください。", context_answer: "unknown" }, "S", "strong_suspicion"],
-  ["U1c_amazon_free_card", { display_name: "Amazon", from_email: "amazon-support@free.example", body: "Amazonサポートです。至急 https://q7v9z.example/update でカードを再登録してください。", context_answer: "unknown" }, "S", "strong_suspicion"],
-  ["U2_member_receipt", { display_name: "テスト会員", from_email: "notice@member.example", body: "山田様、ご注文TEST-204を受け付けました。発送後にご連絡します。", context_answer: "unknown" }, "N", "no_clear_signal"],
+  ["U1a_nta_random_demand", { display_name: "国税局", from_email: "no-reply@fail.pfcrz.example", body: "国税局です。山田様、未納の税金があります。本日中に下記URLからお支払いください。支払わない場合は差し押さえを執行します。\nhttps://q7v9z.example/pay" }, "S", "strong_suspicion"],
+  ["U1b_amazon_random_card_cvv", { display_name: "Amazon", from_email: "no-reply@q7v9z.example", body: "Amazonサポートです。お客様のアカウントが停止されます。今すぐ https://short.example/x からカード番号とセキュリティコードを入力してください。" }, "S", "strong_suspicion"],
+  ["U1c_amazon_free_card", { display_name: "Amazon", from_email: "amazon-support@free.example", body: "Amazonサポートです。至急 https://q7v9z.example/update でカードを再登録してください。" }, "S", "strong_suspicion"],
+  ["U2_member_receipt", { display_name: "テスト会員", from_email: "notice@member.example", body: "山田様、ご注文TEST-204を受け付けました。発送後にご連絡します。" }, "N", "no_clear_signal"],
   ["U3_negation", { body: "山田様、暗証番号やカード番号を返信しないでください。" }, "N", "no_clear_signal"],
   ["U4_shortid_not_email", { channel: "sms", from_email: "TESTID", body: "認証コード123456です。他人には教えないでください。" }, "N", "insufficient"],
-  ["U5_empty", { channel: "sms", body: "", context_answer: "unknown" }, "N", "insufficient"],
-  ["U6_ctx_yes", { body: "山田様、お支払い500円の受領通知です。", context_answer: "yes" }, "N", "no_clear_signal"],
-  ["U6_ctx_no", { body: "山田様、お支払い500円の受領通知です。", context_answer: "no" }, "N", "needs_review"],
-  ["U6_ctx_unknown", { body: "山田様、お支払い500円の受領通知です。", context_answer: "unknown" }, "N", "no_clear_signal"],
+  ["U5_empty", { channel: "sms", body: "" }, "N", "insufficient"],
+  ["U6_receipt", { body: "山田様、お支払い500円の受領通知です。" }, "N", "no_clear_signal"],
   // §10 抜粋
   ["T_dedupe", { display_name: "ヤマト運輸", from_email: "notice@unrelated.example", body: "山田様、ヤマト運輸です。発送しました。" }, "S", "strong_suspicion"],
   ["T_from_typo_dedupe", { display_name: "Amazon", from_email: "notice@amaz0n.example", body: "山田様、通知です。" }, "M", "needs_review"],
@@ -66,16 +64,19 @@ const rows = [
   ["T8_unknown_urgent_update[gates=mock_pass]", { display_name: "テスト会員", body: "山田様、今すぐ https://q7v9z.example/r/update でカードを再登録しないと利用を停止します。" }, "S", "strong_suspicion", { routeEnabled: true }],
 ];
 let pass = 0;
-const dangerByCtx = {};
 for (const [id, inp, ed, evd, o] of rows) {
   const r = judge({ ...defaults, ...inp }, { protocol: FIX, ...(o || {}) });
   const ok = r.danger_level === ed && r.verdict === evd && r.safety_guarantees === false;
   if (ok) pass++;
   console.log(`${ok ? "PASS" : "FAIL"}  ${id}: danger=${r.danger_level} verdict=${r.verdict}  (expected ${ed}/${evd})` +
     (ok ? "" : `\n      rules=${r.evidence.map(e => e.rule_id + ":" + e.strength).join(",")} comps=${r.composite_rules.map(c => c.rule_id + ":" + c.policy_level + ">" + c.effective_level).join(",")} issues=${r.input_issues}`));
-  if (id.startsWith("U6")) dangerByCtx[id] = r.danger_level;
 }
-const inv = new Set(Object.values(dangerByCtx)).size === 1;
-console.log(`context invariance (U6 yes/no/unknown same danger): ${inv ? "PASS" : "FAIL"}`);
+const receipt = "山田様、お支払い500円の受領通知です。";
+const ignored = ["yes", "no", "unknown"].every((ctx) => {
+  const r = judge({ ...defaults, body: receipt, context_answer: ctx }, { protocol: FIX });
+  const text = JSON.stringify(r.display);
+  return r.danger_level === "N" && r.verdict === "no_clear_signal" && !text.includes("心当たり") && !r.input_issues.includes("context_invalid");
+});
+console.log(`context answer is ignored: ${ignored ? "PASS" : "FAIL"}`);
 console.log(`\n${pass}/${rows.length} subset rows passed. これは§10の一部のみで、全件合格を意味しません。`);
-process.exit(pass === rows.length && inv ? 0 : 1);
+process.exit(pass === rows.length && ignored ? 0 : 1);

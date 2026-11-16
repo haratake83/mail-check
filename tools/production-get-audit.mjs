@@ -52,14 +52,14 @@ async function evaluate(expression) {
 await send("Page.navigate", { url: origin + "/" });
 await evaluate(`new Promise((resolve) => { if (document.readyState === "complete") resolve(true); else addEventListener("load", () => resolve(true), { once: true }); })`);
 const before = net.length;
-await evaluate(`document.getElementById("display_name").value = ${JSON.stringify(marker)}; document.getElementById("from_email").value = "notice@example.com"; document.getElementById("body").value = ${JSON.stringify("本文 " + marker + " https://example.com/" + marker)}; document.getElementById("check").click();`);
+await evaluate(`document.getElementById("display_name").value = ${JSON.stringify(marker)}; document.getElementById("from_email").value = "notice@example.com"; document.getElementById("body").value = ${JSON.stringify("本文 " + marker + " https://example.com/" + marker)}; const genre = document.querySelector('input[name="sender_genre"][value="other"]'); const content = document.querySelector('input[name="mail_content"][value="other"]'); if (genre) genre.checked = true; if (content) content.checked = true; document.getElementById("check").click();`);
 await evaluate(`new Promise((resolve) => { const t = setInterval(() => { if (document.querySelector("#result.show")) { clearInterval(t); resolve(true); } }, 20); })`);
 await evaluate(`new Promise((r) => setTimeout(r, 400))`);
 const leaked = net.filter((r) => (r.url + "\n" + r.postData).includes(marker));
 function domainPostOnly(r) {
   try {
     const u = new URL(r.url);
-    if (!u.pathname.endsWith("/api/domain-created") && !u.pathname.endsWith("/api/weekly-rank")) return false;
+    if (!u.pathname.endsWith("/api/domain-created") && !u.pathname.endsWith("/api/weekly-rank") && !u.pathname.endsWith("/api/domain-count")) return false;
     const data = JSON.parse(r.postData || "");
     const keys = Object.keys(data);
     const allowed = { domain: 1, genre: 1, content: 1 };

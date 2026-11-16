@@ -104,10 +104,10 @@ const missing = await lookupRegistration("example.com", {
 });
 check("unparsed date is unavailable", missing.status === "unavailable" && age.cautionText(missing) === "");
 
-const benign = judge({ display_name: "山田太郎", subject: "重要", from_email: "notice@example.com", body: "山田様、本日の連絡です。", context_answer: "unknown", channel: "email" });
+const benign = judge({ display_name: "山田太郎", subject: "重要", from_email: "notice@example.com", body: "山田様、本日の連絡です。", channel: "email" });
 const before = JSON.stringify(benign);
 check("unavailable leaves the judgment intact", age.cautionText({ status: "unavailable" }) === "" && benign.display.headline.length > 0 && benign.verdict === "no_clear_signal" && JSON.stringify(benign) === before);
-const strong = judge({ from_email: "notice@example.com", body: "ギフトカードの番号を送ってください。", context_answer: "unknown", channel: "email" });
+const strong = judge({ from_email: "notice@example.com", body: "ギフトカードの番号を送ってください。", channel: "email" });
 const strongBefore = JSON.stringify(strong);
 const strongCaution = age.cautionText({ created: "2026-10-14", age_days: 30 });
 check("caution does not change the verdict", strong.verdict === "strong_suspicion" && strong.danger_level === "S" && JSON.stringify(strong) === strongBefore && strongCaution.includes("30日以内") && !JSON.stringify(strong).includes("30日以内"));
@@ -318,7 +318,7 @@ check("ui does not fetch by itself", !ui.includes("fetch(") && !ui.includes("rda
 check("caution uses the sky 1px note", css.includes(".domain-age-note") && css.includes("border: 1px solid var(--sky-line)") && css.includes("--sky: #E6F4FB") && !/\.domain-age-note\s*\{[^}]*border-width:\s*2px/.test(css));
 check("older bands use a white note with a thick navy frame", css.includes(".domain-age-note.domain-age-mild") && /domain-age-mild\s*\{[^}]*background:\s*#fff/.test(css) && /domain-age-mild\s*\{[^}]*border:\s*var\(--frame\)/.test(css) && !/\.domain-age-mild\s*\{[^}]*border-width:\s*2px/.test(css));
 check("csp keeps form-action none and connect-src self", csp.includes("form-action 'none'") && csp.includes("connect-src 'self'") && !csp.includes("connect-src 'none'") && !csp.includes("rdap.org"));
-check("privacy names the domain lookup and not collection", privacy.includes("登録ドメイン") && privacy.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("表示 v0.10.5") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.4"));
+check("privacy names the domain lookup and not collection", privacy.includes("登録ドメイン") && privacy.includes("取得日が分からないことは、危険とも安全とも扱いません") && html.includes("表示 v0.10.6") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.5"));
 check("privacy says the date is kept for 7 days only", privacy.includes("最大7日間") && privacy.includes("この取得日は、統計、履歴、公開の一覧、週間ランキングには使いません。") && privacy.includes("登録者の名前や連絡先は残しません") && !privacy.includes("送ったドメインと取得日は保存せず"));
 check("protocol version is unchanged", fs.readFileSync(path.join(root, "js/protocol-data.js"), "utf8").includes('version: "v0.10"'));
 

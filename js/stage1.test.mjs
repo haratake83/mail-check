@@ -17,7 +17,7 @@ const FIX = {
   redirects: [],
   scopedRoutes: [],
 };
-const email = { display_name: "", from_email: "notice@example.com", context_answer: "unknown", channel: "email", visible_link_url: "" };
+const email = { display_name: "", from_email: "notice@example.com", channel: "email", visible_link_url: "" };
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -100,17 +100,12 @@ const words = run("マクロ コマンド ZIP powershell デバイスコード O
 check("word list alone gives unknown", tags(words).join(",") === "unknown" && words.danger_level === "N" && words.verdict === "no_clear_signal");
 
 const dcWord = run("資料にデバイスコードという語が出てきます。");
-const dcIn = run("デバイスコードを入力してください。", { context_answer: "yes" });
-const dcNo = run("デバイスコードを入力してください。", { context_answer: "no" });
-const dcUnk = run("デバイスコードを入力してください。", { context_answer: "unknown" });
+const dcIn = run("デバイスコードを入力してください。");
 check("device-code mention has no tag and is not strong", tags(dcWord).join(",") === "unknown" && dcWord.danger_level !== "S");
-for (const [name, r] of [["yes", dcIn], ["no", dcNo], ["unknown", dcUnk]]) {
-  check("device-code input " + name + " is credential not malware", tags(r).indexOf("credential_or_payment") >= 0 && tags(r).indexOf("malware_or_execution") < 0, tags(r).join(","));
-  check("device-code input " + name + " is not strong", r.danger_level === "M" && r.verdict === "needs_review" && ids(r) === "A06", r.danger_level + " " + ids(r));
-  const cred = r.purpose_assessment.find((p) => p.tag === "credential_or_payment");
-  check("device-code input " + name + " stays after context and is not infection", cred && /感染ではなく/.test(cred.explanation) && cred.rule_ids.indexOf("A06") >= 0);
-}
-check("context does not change device-code danger", dcIn.danger_level === dcNo.danger_level && dcNo.danger_level === dcUnk.danger_level);
+check("device-code input is credential not malware", tags(dcIn).indexOf("credential_or_payment") >= 0 && tags(dcIn).indexOf("malware_or_execution") < 0, tags(dcIn).join(","));
+check("device-code input is not strong", dcIn.danger_level === "M" && dcIn.verdict === "needs_review" && ids(dcIn) === "A06", dcIn.danger_level + " " + ids(dcIn));
+const cred = dcIn.purpose_assessment.find((p) => p.tag === "credential_or_payment");
+check("device-code input is not infection", cred && /感染ではなく/.test(cred.explanation) && cred.rule_ids.indexOf("A06") >= 0);
 
 const oauth = run("OAuthの同意画面でコードを入力してください。");
 const oauthWord = run("OAuthとは認可の仕組みです。");
@@ -133,12 +128,10 @@ check("clickfix text does not declare infection", clickTag && /感染は、こ�
 check("clickfix id is not a score", noObs(click));
 check("clickfix keeps the four verdicts and adds a lead ahead of the grey result", click.display.lead && /先に読んでください/.test(click.display.lead.headline) && /4つの判定区分と点数は変えていません/.test(click.display.lead.note) && /判断できませんでした/.test(click.display.headline));
 
-for (const ctx of ["yes", "no", "unknown"]) {
-  const z = run("パスワード付きZIPを開いて実行してください。", { context_answer: ctx });
-  const zt = (z.purpose_assessment || []).find((p) => p.tag === "malware_or_execution");
-  check("zip execute " + ctx + " keeps warning and is not strong", z.danger_level === "N" && zt && /断定したものではありません/.test(zt.explanation), z.danger_level);
-}
-check("zip execute yes does not clear the tag", tags(run("パスワード付きZIPを開いて実行してください。", { context_answer: "yes" })).indexOf("malware_or_execution") >= 0);
+const zipExec = run("パスワード付きZIPを開いて実行してください。");
+const zipExecTag = (zipExec.purpose_assessment || []).find((p) => p.tag === "malware_or_execution");
+check("zip execute keeps warning and is not strong", zipExec.danger_level === "N" && zipExecTag && /断定したものではありません/.test(zipExecTag.explanation), zipExec.danger_level);
+check("zip execute does not clear the tag", tags(zipExec).indexOf("malware_or_execution") >= 0);
 const reassure = run("心配ありません、ZIPを開いて実行してください。");
 check("reassurance does not cancel a separate execute request", tags(reassure).indexOf("malware_or_execution") >= 0 && reassure.danger_level !== "S" && reassure.display.lead, tags(reassure).join(",") + " " + reassure.danger_level);
 check("bare zip execution is not described as password-protected", !/パスワード付き/.test((reassure.purpose_assessment.find((p) => p.tag === "malware_or_execution") || {}).explanation || "") && /アプリやコマンド等の実行を促す/.test(JSON.stringify(reassure.display.lead)));
@@ -269,14 +262,14 @@ const urgentButton = run("山田様、今すぐこちらのボタンを押して
 check("urgent button only stays inside the four verdicts", ["strong_suspicion", "needs_review", "no_clear_signal", "insufficient"].indexOf(urgentButton.verdict) >= 0 && !(urgentButton.url_assessments || []).some((a) => a.fetched));
 check("the page does not ask people to paste a separate link", !html.includes("リンク先を貼って") && !html.includes("長押しして") && html.includes("本文（本文中のURLを含む）"));
 check("name field is for judgment only and choices are present", html.includes('id="display_name"') && html.includes("メールに記載された名前") && html.includes("保存や公開はしません") && html.includes('id="genre_legend"') && html.includes("送信元のジャンル") && html.includes("該当する項目にチェックを入れてください") && !html.includes("（ひとつだけ）") && html.includes('type="radio" name="sender_genre"') && !html.includes('type="checkbox" name="sender_genre"') && html.includes('id="content_legend"') && html.includes("メールの内容") && html.includes('type="radio" name="mail_content"') && !html.includes('type="checkbox" name="mail_content"') && html.includes("宅配便・配送業者") && html.includes("当選・給付金の案内") && html.indexOf('id="display_name"') < html.indexOf('for="subject"') && html.indexOf('id="subject_warn"') < html.indexOf('id="subject"') && html.indexOf('id="subject"') < html.indexOf('id="from_email"') && html.includes("このサイトの判定に、それらの情報は不要です"));
-const formOrder = ['id="display_name"', 'id="subject"', 'id="from_email"', 'id="body"', 'id="genre_set"', 'id="content_set"', 'id="ctx_q"'];
-check("form order is name, subject, address, body, genre, content, then context", formOrder.every(function (marker, i) { return html.indexOf(marker) >= 0 && (i === 0 || html.indexOf(formOrder[i - 1]) < html.indexOf(marker)); }));
+const formOrder = ['id="display_name"', 'id="subject"', 'id="from_email"', 'id="body"', 'id="genre_set"', 'id="content_set"'];
+check("form order is name, subject, address, body, genre, then content", formOrder.every(function (marker, i) { return html.indexOf(marker) >= 0 && (i === 0 || html.indexOf(formOrder[i - 1]) < html.indexOf(marker)); }) && !html.includes("心当たりはありますか") && !html.includes('name="context_answer"'));
 check("genre and content option values match", ["delivery", "bank", "ec", "carrier", "gov", "other"].every(function (v) { return html.includes('name="sender_genre" value="' + v + '"'); }) && ["undelivered", "lock", "unpaid", "prize", "other"].every(function (v) { return html.includes('name="mail_content" value="' + v + '"'); }) && html.includes("銀行・カード会社") && html.includes("通販サイト") && html.includes("通信キャリア") && html.includes("官公庁・税務署") && html.includes("その他・不明") && html.includes("不在通知・再配達") && html.includes("アカウント停止・ロック") && html.includes("未払い料金の請求"));
-const contentSet = html.slice(html.indexOf('id="content_set"'), html.indexOf('id="ctx_q"'));
+const contentSet = html.slice(html.indexOf('id="content_set"'), html.indexOf('id="privacy_detail"'));
 check("その他・不明 is the last mail content choice", contentSet.indexOf('value="prize"') < contentSet.indexOf('name="mail_content" value="other"') && contentSet.lastIndexOf('name="mail_content"') === contentSet.indexOf('name="mail_content" value="other"') && contentSet.includes("> その他・不明</label>"));
-check("choice groups start unchecked and clear leaves them unchecked", !html.includes(" checked") && !/value="unknown"[^>]*checked/.test(html) && !/value="other"[^>]*checked/.test(html) && (html.match(/該当する項目にチェックを入れてください/g) || []).length === 3 && ui.includes('input[name="sender_genre"], input[name="mail_content"], input[name="context_answer"]') && ui.includes("c.checked = false"));
+check("choice groups start unchecked and clear leaves them unchecked", !html.includes(" checked") && !/value="other"[^>]*checked/.test(html) && (html.match(/該当する項目にチェックを入れてください/g) || []).length === 2 && ui.includes('input[name="sender_genre"], input[name="mail_content"]') && !ui.includes("context_answer") && ui.includes("c.checked = false"));
 const submitFn = ui.slice(ui.indexOf('addEventListener("submit"'), ui.indexOf("function renderFailure"));
-check("judgment waits for every choice and does not call the apis early", submitFn.indexOf("missingChoices") >= 0 && submitFn.indexOf("missingChoices") < submitFn.indexOf("MH_judge") && submitFn.indexOf("showChoiceErrors") < submitFn.indexOf("MH_DOMAIN_AGE") && submitFn.indexOf("showChoiceErrors") < submitFn.indexOf("MH_WEEKLY") && ui.includes("この項目を選んでから、もう一度「判定する」を押してください。") && ui.includes("選んでいない項目があります。上の項目を選んでください。") && ui.includes('context_answer: radio("context_answer")'));
+check("judgment waits for every choice and does not call the apis early", submitFn.indexOf("missingChoices") >= 0 && submitFn.indexOf("missingChoices") < submitFn.indexOf("MH_judge") && submitFn.indexOf("showChoiceErrors") < submitFn.indexOf("MH_DOMAIN_AGE") && submitFn.indexOf("showChoiceErrors") < submitFn.indexOf("MH_WEEKLY") && submitFn.indexOf("showChoiceErrors") < submitFn.indexOf("MH_DOMAIN_COUNT") && ui.includes("この項目を選んでから、もう一度「判定する」を押してください。") && ui.includes("選んでいない項目があります。上の項目を選んでください。") && !submitFn.includes("context_answer"));
 check("field comments stay in the form", html.includes("<!-- ここはメールに記載された名前の欄です") && html.includes("<!-- ここは送信元のジャンルの欄です -->") && html.includes("<!-- ここはメールの内容の欄です -->"));
 const judgeCall = ui.slice(ui.indexOf("window.MH_judge("), ui.indexOf("window.MH_judge(") + 500);
 check("name goes to the judge and choices do not", judgeCall.includes("display_name") && !judgeCall.includes("sender_genre") && !judgeCall.includes("mail_content") && !judgeCall.includes("genres") && ui.includes('genres: checkedValues("sender_genre")') && ui.includes('tactics: checkedValues("mail_content")') && !/buildSubmitPayload\(\{[^}]*display_name/.test(ui));
@@ -294,7 +287,7 @@ check("subject is drawn with textContent", ui.includes('el("p", "summary-subject
 check("front page header is the logo and the title stays", html.includes('class="site-wordmark"') && html.includes('src="img/sagi-mail-check-logo.png"') && html.includes('alt="詐欺メールチェック.com"') && html.includes('property="og:title" content="詐欺メール判定.com"') && html.includes("<title>詐欺メール判定.com"));
 check("approved explanation wrappers are present", html.includes('class="intro-block"') && html.includes('class="field-warn" id="subject_warn"') && html.includes('class="from-help-body"') && html.includes('class="body-notes"') && html.includes('class="after-form-notes"') && html.indexOf('id="privacy_detail"') < html.indexOf('id="history_pending"') && html.indexOf('id="history_pending"') < html.indexOf('id="stats_note"') && html.indexOf('id="stats_note"') < html.indexOf('id="check"') && html.includes('class="privacy-page-link" href="privacy.html"'));
 check("display_name is not a named submit field", !/<input\b[^>]*\bid="display_name"[^>]*\bname=/.test(html) && !/<input\b[^>]*\bname="display_name"/.test(html));
-check("visible version is v0.10.5 and the protocol stays v0.10", html.includes("表示 v0.10.5") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.4"));
+check("visible version is v0.10.6 and the protocol stays v0.10", html.includes("表示 v0.10.6") && html.includes("判定プロトコル v0.10") && !html.includes("表示 v0.10.5"));
 check("stylesheet uses navy frames, sky cautions, and a self-hosted wordmark font", css.includes("--navy: #224C9E") && css.includes("--frame: 3px solid var(--navy)") && css.includes("--sky: #E6F4FB") && css.includes("--sky-line: #5BA4C9") && css.includes("--body-text: 0.85rem") && css.includes("--paper: #ffffff") && css.includes("--logo-green: #2EAC6F") && css.includes("border: 2px solid var(--logo-green)") && css.includes("background: var(--navy)") && css.includes("border: var(--frame)") && !css.includes("border-top: 2px solid var(--green)") && !css.includes("#F6EDE3") && !css.includes("#F8E7C1") && !css.includes("#c9a227") && !css.includes("#d9cbb8") && css.includes('url("../fonts/zenkaku-jp-900.woff2")') && css.includes('url("../fonts/zenkaku-latin-500.woff2")') && !css.includes("fonts.googleapis.com") && !css.includes("fonts.gstatic.com") && !css.includes("background:#222") && !css.includes("background: #222"));
 check("wordmark font files and the OFL notice are in the repo", ["fonts/zenkaku-latin-500.woff2", "fonts/zenkaku-latin-900.woff2", "fonts/zenkaku-jp-500.woff2", "fonts/zenkaku-jp-900.woff2", "fonts/OFL-ZenKakuGothicNew.txt"].every(function (rel) { const p = new URL("../" + rel, import.meta.url); return fs.existsSync(p) && fs.statSync(p).size > 0; }));
 

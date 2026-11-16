@@ -589,9 +589,9 @@
     var routeEnabled = opts.routeEnabled === true; // テスト用モック。本番は常にfalse
     var res = {
       schema_version: P.schema_version, verdict: null, danger_level: "N", confidence_band: "low",
-      channel: "email", context_answer: "unknown", sender_kind: "unknown", safety_guarantees: false,
+      channel: "email", sender_kind: "unknown", safety_guarantees: false,
       input_issues: [], evidence: [], composite_rules: [], namespace_assessments: [], route_assessments: [],
-      gate_evaluations: [], auxiliary_flags: [], context_evidence: [], unknowns: [], urls_parsed: [],
+      gate_evaluations: [], auxiliary_flags: [], unknowns: [], urls_parsed: [],
       disclaimer_ja: "本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。",
       recommended_actions_ja: [], privacy: { retention: "minimize", mask: ["otp", "card", "account", "phone"] }
     };
@@ -600,10 +600,6 @@
     if (input.channel === "sms") res.unknowns.push("sms_channel_not_supported");
     else if (input.channel && input.channel !== "email") res.input_issues.push("channel_invalid");
     res.channel = ch;
-    var ctx = input.context_answer;
-    if (ctx === "yes" || ctx === "no" || ctx === "unknown") res.context_answer = ctx;
-    else { res.input_issues.push("context_invalid"); res.context_answer = "unknown"; }
-    res.context_evidence.push({ kind: "user_self_report", value: res.context_answer });
     var body = nfkc(input.body || "");
     if (!body.trim()) res.input_issues.push("body_empty");
     var display = nfkc(input.display_name || "");
@@ -922,20 +918,12 @@
 
     // --- verdict（§4.6–4.7） ---
     var fromMissing = res.input_issues.indexOf("from_unparseable") >= 0;
-    var otherBlock = res.input_issues.filter(function (x) { return x !== "context_invalid" && x !== "from_unparseable"; });
+    var otherBlock = res.input_issues.filter(function (x) { return x !== "from_unparseable"; });
     if (fromMissing && !otherBlock.length) res.verdict = "insufficient";
     else if (level === "S") res.verdict = "strong_suspicion";
     else if (otherBlock.length || fromMissing) res.verdict = "insufficient";
-    else {
-      var c2 = res.context_answer;
-      if (level === "M") res.verdict = "needs_review";
-      else if (level === "W") {
-        if (c2 === "yes") {
-          var exc = hasClaim || nWeak >= 2 || hasUrlMis || hasA04 || f.B04 || f.A01x;
-          res.verdict = exc ? "needs_review" : "no_clear_signal";
-        } else res.verdict = "needs_review";
-      } else res.verdict = c2 === "no" ? "needs_review" : "no_clear_signal";
-    }
+    else if (level === "M" || level === "W") res.verdict = "needs_review";
+    else res.verdict = "no_clear_signal";
     res.flags = f;
     ev.forEach(function (e) {
       if (e.spans && e.spans.length) e.spans = e.spans.map(redactSpan);
@@ -963,7 +951,7 @@
   }
   function applyInputGapLead(res) {
     var issues = res.input_issues || [];
-    var onlyFrom = issues.indexOf("from_unparseable") >= 0 && issues.every(function (x) { return x === "from_unparseable" || x === "context_invalid"; });
+    var onlyFrom = issues.indexOf("from_unparseable") >= 0 && issues.every(function (x) { return x === "from_unparseable"; });
     if (res.verdict === "insufficient" && onlyFrom && (res.danger_level === "M" || res.danger_level === "S")) {
       res.display.input_gap_lead = {
         headline: "入力が足りませんが、注意すべき特徴があります",
@@ -995,22 +983,17 @@
     if (r.verdict === "strong_suspicion") {
       d.tone = "red"; d.headline = "詐欺" + M + "の疑いが強いです";
       d.body = "詐欺" + M + "によく見られる強い特徴があります。" + M + "内のリンク・電話番号・添付ファイルは使わず、公式アプリやブックマークから直接確認してください。";
-      if (r.context_answer === "yes") d.notes.push("心当たりがあっても、本物の通知を装った可能性があります。");
       if (r.input_issues.length) d.notes.push("入力に不足があります（" + issueText(r.input_issues, ch).join("、") + "）。");
     } else if (r.verdict === "needs_review") {
       d.tone = "yellow"; d.headline = "注意が必要です（要確認）";
       d.body = "本物かどうか確認が必要です。" + M + "内のリンクからではなく、公式アプリやブックマークした公式サイトで同じ通知があるか確認してください。";
-      if (r.context_answer === "no" && r.danger_level === "N") {
-        d.notes.push("心当たりがないとの回答を踏まえた確認のご案内です。これだけで詐欺と断定したわけではありません。");
-        if (!d.reasons.length) d.reasons.push("根拠：心当たりなしの回答のみ");
-      }
     } else if (r.verdict === "no_clear_signal") {
       d.tone = "grey"; d.headline = "このツールでは判断できませんでした。公式アプリやブックマークから直接確認してください";
       d.banner = "安全ではありません。" + M + "内のリンクは開かず、公式アプリやブックマークから直接確認してください。";
       d.body = "これは詐欺と確定した意味でも、安全と確認できた意味でもありません。送信元の偽装やリンクの本当の行き先を確認できず、特徴が出ない詐欺もあります。";
     } else {
       d.tone = "grey"; d.headline = "情報が足りず判定できません";
-      d.body = "メールに記載されたアドレス（@を含む全体）、本文、心当たりの回答を確認してください。メール内のリンクは開かないでください。";
+      d.body = "メールに記載されたアドレス（@を含む全体）と本文を確認してください。メール内のリンクは開かないでください。";
       d.notes = issueText(r.input_issues, ch);
     }
     d.actions = [
@@ -1030,7 +1013,7 @@
     return d;
   }
   function issueText(list) {
-    var T = { body_empty: "本文が空です", from_unparseable: "メールに記載されたアドレス（@を含む全体）を読み取れません", context_invalid: "「心当たり」の回答を選び直してください", channel_invalid: "このサービスはメールだけを判定します" };
+    var T = { body_empty: "本文が空です", from_unparseable: "メールに記載されたアドレス（@を含む全体）を読み取れません", channel_invalid: "このサービスはメールだけを判定します" };
     return list.map(function (x) { return T[x] || x; });
   }
 
