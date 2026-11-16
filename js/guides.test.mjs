@@ -51,7 +51,7 @@ function footerNav(html) {
 }
 const indexNav = footerNav(index);
 const spotNav = footerNav(read("guides/how-to-spot.html"));
-check("T-NAV full guide names stack at the bottom without 相談窓口", linkNames.every(function (name, i) { return indexNav.includes(name) && (i === 0 || indexNav.indexOf(linkNames[i - 1]) < indexNav.indexOf(name)); }) && !indexNav.includes("相談窓口") && linkNames.every(function (name) { return spotNav.includes(name); }) && !spotNav.includes("相談窓口") && index.indexOf('class="guide-links"') > index.indexOf("表示 v0.10.8"));
+check("T-NAV full guide names stack at the bottom without 相談窓口", linkNames.every(function (name, i) { return indexNav.includes(name) && (i === 0 || indexNav.indexOf(linkNames[i - 1]) < indexNav.indexOf(name)); }) && !indexNav.includes("相談窓口") && linkNames.every(function (name) { return spotNav.includes(name); }) && !spotNav.includes("相談窓口") && index.indexOf('class="guide-links"') > index.indexOf("表示 v0.10.9"));
 check("T-R19 history subject can be masked", ui.includes("function maskHistorySubject") && read("privacy.html").includes("共用の端末では"));
 console.log("\n" + pass + " passed, " + fail + " failed.");
 if (fail) { console.log(failures.join("\n")); process.exit(1); }
