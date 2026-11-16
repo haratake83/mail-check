@@ -583,6 +583,84 @@
   }
 
   // ---------- メイン ----------
+  var THEME_LIST = [
+    { id: "point_expiry", label: "ポイントやマイルの失効", re: /(ポイント|マイル|コイン).{0,16}(失効|有効期限)|(失効|有効期限).{0,16}(ポイント|マイル|コイン)|本日失効/ },
+    { id: "payment", label: "支払い・更新の未完了", re: /(未決済|支払[い]?手続[き]?未完了|更新手続[き]?が完了できませんでした|支払いエラー|支払エラー)/ },
+    { id: "fraud", label: "不正ログインや不正利用の知らせ", re: /不正ログイン|異常ログイン|不正利用/ },
+    { id: "refund_error", label: "還付金の振り込みエラー", re: null, test: function (n) { return /還付金/.test(n) && /(振込|振り込み)/.test(n) && /(エラー|失敗|不能|できません)/.test(n); } },
+    { id: "refund", label: "還付金や給付金の受け取り", re: /給付金|還付金の受け取り|キャンペーンの受け取り/ },
+    { id: "tax_cert", label: "住宅借入金等特別控除証明書の案内", re: /住宅借入金等特別控除証明書/ },
+    { id: "parcel", label: "荷物のお預かりや持ち戻り", re: /お届け荷物のお預かり|荷物のお預かり|持ち戻り|住所不明/ },
+    { id: "limit", label: "カードのご利用可能額の知らせ", re: /ご利用可能額|利用可能額の知/ },
+    { id: "etc", label: "ETCの有効期限の案内", re: /ETC.{0,24}(有効期限|期限切れ)|(有効期限|期限切れ).{0,16}ETC/ },
+    { id: "virus", label: "ウイルス感染や容量不足の警告", re: /ウイルス感染|マルウェア|容量の上限|容量不足|クラウド容量/ },
+    { id: "secret", label: "秘密鍵や復元フレーズの入力", re: /秘密鍵|復元フレーズ|リカバリーフレーズ|シードフレーズ/ },
+    { id: "mynumber", label: "マイナンバーの入力", re: /マイナンバー.{0,16}(更新|入力|確認|提出)/ },
+    { id: "lock", label: "アカウントの停止や凍結", re: /アカウント.{0,10}(停止|凍結|ロック)|メンバーシップ.{0,10}(停止|一時停止)/ },
+    { id: "unpaid", label: "未払いや引き落とし失敗の案内", re: /引き落とし(が)?失敗|引き落としできません|差押|差し押さえ|料金の未払い|未払い料金/ },
+    { id: "booking", label: "予約や利用明細の確認", re: /予約のキャンセル|予約キャンセル|利用明細/ },
+    { id: "freeze", label: "出金制限や資産の凍結", re: /出金制限|資産の凍結|ウォレット.{0,8}凍結/ }
+  ];
+  var THEME_ADVICE = {
+    point_expiry: "ポイントは、公式アプリで残高と期限を確認してください。",
+    secret: "秘密鍵・復元フレーズは、誰にも入力しないでください。",
+    mynumber: "マイナンバーは、メールの案内では入力しないでください。",
+    etc: "ETCは、公式サイトを自分で開いて確認してください。",
+    virus: "ウイルス感染や容量の警告は、公式の設定画面を自分で開いて確認してください。",
+    lock: "アカウントの停止や凍結は、公式アプリに自分でログインして確認してください。",
+    payment: "支払い方法は、公式アプリやブックマークから開いた公式サイトで確認してください。",
+    unpaid: "未払いや引き落としの案内は、公式アプリで請求の有無を確認してください。",
+    fraud: "不正利用やログインの知らせは、公式アプリで利用明細を確認してください。",
+    refund: "還付金や給付金の案内は、公式サイトを自分で開いて確認してください。",
+    refund_error: "還付金や給付金の案内は、公式サイトを自分で開いて確認してください。",
+    parcel: "不在や持ち戻りの案内は、配送会社の公式の荷物問い合わせで確認してください。",
+    booking: "予約や利用明細は、公式サイトを自分で開いて確認してください。",
+    freeze: "出金制限や資産の凍結の案内は、公式アプリを自分で開いて確認してください。"
+  };
+  var CHOICE_THEMES = {
+    point_expiry: ["point_expiry"],
+    reauth: ["secret", "mynumber"],
+    reservation: ["etc", "booking"],
+    virus: ["virus"],
+    lock: ["lock"],
+    payment_update: ["payment"],
+    unpaid: ["unpaid"],
+    fraud_alert: ["fraud"],
+    prize: ["refund", "refund_error"],
+    undelivered: ["parcel"],
+    points: ["point_expiry"],
+    crypto: ["secret", "freeze"],
+    travel: ["etc", "booking"],
+    it: ["virus", "lock"],
+    gov: ["refund", "refund_error", "unpaid", "mynumber"],
+    delivery: ["parcel"],
+    ec: ["lock", "payment"],
+    subscription: ["payment", "lock"],
+    card: ["fraud", "payment"],
+    bank: ["fraud", "unpaid", "freeze"],
+    carrier: ["unpaid", "lock"]
+  };
+  function themeHits(compact) {
+    var hits = [];
+    THEME_LIST.forEach(function (theme) {
+      var ok = theme.test ? theme.test(compact) : theme.re && theme.re.test(compact);
+      if (ok) hits.push({ id: theme.id, label: theme.label });
+    });
+    return hits;
+  }
+  function themeAdvice(input, hits) {
+    var selected = {};
+    [input && input.mail_content, input && input.sender_genre].forEach(function (key) {
+      (CHOICE_THEMES[key] || []).forEach(function (id) { selected[id] = 1; });
+    });
+    var lines = [];
+    hits.forEach(function (hit) {
+      var line = selected[hit.id] ? THEME_ADVICE[hit.id] : "";
+      if (line && lines.indexOf(line) < 0) lines.push(line);
+    });
+    return lines;
+  }
+
   function judge(input, opts) {
     opts = opts || {};
     var P = opts.protocol || g.MH_PROTOCOL;
@@ -839,15 +917,8 @@
     if (!campOfficial) {
       var campRaw = (input.body || "") + "\n" + (input.display_name || "");
       var campN = nfkc(campRaw).replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\u00AD\uFEFF\s　]/g, "");
-      var campThemes = [];
-      if (/(ポイント|コイン).{0,20}失効|失効.{0,20}(ポイント|コイン)/.test(campN)) campThemes.push("ポイントやコインの失効");
-      if (/(未決済|支払[い]?手続[き]?未完了|更新手続[き]?が完了できませんでした)/.test(campN)) campThemes.push("支払い・更新の未完了");
-      if (/不正ログイン/.test(campN)) campThemes.push("不正ログインの知らせ");
-      if (/不正利用/.test(campN)) campThemes.push("不正利用の知らせ");
-      if (/還付金/.test(campN) && /(振込|振り込み)/.test(campN) && /(エラー|失敗|不能|できません)/.test(campN)) campThemes.push("還付金の振り込みエラー");
-      if (/住宅借入金等特別控除証明書/.test(campN)) campThemes.push("住宅借入金等特別控除証明書の案内");
-      if (/お届け荷物のお預かり|荷物のお預かり/.test(campN)) campThemes.push("荷物のお預かり");
-      if (/ご利用可能額|利用可能額の知/.test(campN)) campThemes.push("カードのご利用可能額の知らせ");
+      var campHits = themeHits(campN);
+      var campThemes = campHits.map(function (h) { return h.label; });
       if (campThemes.length) {
         var campFile = /(ダウンロード|ファイル|添付|開いてください|\.(pdf|zip|exe|docm|xlsm|scr)\b)/i.test(campRaw);
         var campUrl = urls.some(function (u) { return u.source === "body"; });
@@ -862,6 +933,7 @@
     res.campaign_review = campHit;
     res.campaign_note = campNote;
     res.campaign_lead = campLead;
+    res.theme_advice = themeAdvice(input, themeHits(nfkc((input.body || "") + "\n" + (input.display_name || "")).replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\u00AD\uFEFF\s　]/g, "")));
     var hasA11 = ev.some(function (e) { return e.rule_id === "A11"; });
     var routineGuard = routine && senderAligned && !fromTypo && !f.A01x && !f.reply_secret && !hasA11;
     f.routine_guard = routineGuard;
@@ -1041,6 +1113,9 @@
       "すでにパスワード等を入力した場合は、自分で開いた公式サイトでパスワードを変更し、カード会社・金融機関の公式窓口へ連絡してください。",
       "送金してしまった場合は、金融機関・警察・消費生活センターへ早めに相談してください（連絡先は公式サイトでご確認ください）。"
     ];
+    (r.theme_advice || []).forEach(function (line) {
+      if (line && d.actions.indexOf(line) < 0) d.actions.push(line);
+    });
     var auxNote = { B01: "お金に関する言葉があります。これだけでは詐欺とは断定しません。", B02: "リンクやボタンの案内があります。", B03: "宛名がありません。" };
     if (r.danger_level === "W" && r.verdict === "needs_review") {
       (r.auxiliary_flags || []).forEach(function (k) { if (k !== "B08" && auxNote[k] && d.reasons.indexOf(auxNote[k]) < 0) d.reasons.push(auxNote[k]); });

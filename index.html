@@ -61,11 +61,17 @@
       <legend id="genre_legend">送信元のジャンル</legend>
       <p class="choice-help">該当する項目にチェックを入れてください</p>
       <div class="choice-group context-group">
-        <label class="context-option"><input type="radio" name="sender_genre" value="delivery"> 宅配便・配送業者</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="bank"> 銀行・カード会社</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="ec"> 通販サイト</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="carrier"> 通信キャリア</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="gov"> 官公庁・税務署</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="gov"> 公的機関・自治体</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="ec"> 通販・EC</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="delivery"> 宅配・配送</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="bank"> 銀行・証券</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="card"> クレジットカード</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="carrier"> 携帯・通信会社</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="points"> ポイント・マイル</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="subscription"> 動画・サブスク</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="it"> IT・SNS・セキュリティ</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="travel"> 旅行・交通・チケット</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="crypto"> 暗号資産・投資</label>
         <label class="context-option"><input type="radio" name="sender_genre" value="other"> その他・不明</label>
       </div>
       <p class="choice-missing" id="genre_missing" hidden></p>
@@ -76,10 +82,16 @@
       <legend id="content_legend">メールの内容</legend>
       <p class="choice-help">該当する項目にチェックを入れてください</p>
       <div class="choice-group context-group">
-        <label class="context-option"><input type="radio" name="mail_content" value="undelivered"> 不在通知・再配達</label>
-        <label class="context-option"><input type="radio" name="mail_content" value="lock"> アカウント停止・ロック</label>
-        <label class="context-option"><input type="radio" name="mail_content" value="unpaid"> 未払い料金の請求</label>
-        <label class="context-option"><input type="radio" name="mail_content" value="prize"> 当選・給付金の案内</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="undelivered"> 不在通知・再配達・持ち戻り</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="lock"> アカウント停止・凍結・ロック</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="payment_update"> 支払い方法の更新・支払いエラー</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="unpaid"> 未払い・引き落とし失敗・差し押さえ予告</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="fraud_alert"> 不正利用・異常ログインの検知</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="prize"> 還付金・給付金・キャンペーンの受け取り</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="point_expiry"> ポイント失効・有効期限切れ</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="virus"> ウイルス感染・容量不足の警告</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="reservation"> 予約確認・利用明細の確認</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="reauth"> 再認証・秘密鍵やマイナンバーの入力</label>
         <label class="context-option"><input type="radio" name="mail_content" value="other"> その他・不明</label>
       </div>
       <p class="choice-missing" id="content_missing" hidden></p>
@@ -150,7 +162,7 @@
       <p class="weekly-rank-note">直近7日間に、10回以上判定されたものを、多い順に最大10件まで掲載します。よく判定に使われたという情報であり、詐欺であることも、安全であることも意味しません。</p>
     </div>
     <!-- ここは版表示の欄です -->
-    <p class="body-notes">表示 v0.10.7／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／本文の判定はブラウザ内／取得日の照会、判定回数、週間ランキング／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p class="body-notes">表示 v0.10.8／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／本文の判定はブラウザ内／取得日の照会、判定回数、週間ランキング／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a class="terms-public" href="terms.html" hidden>利用規約（下書き）</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
     <nav class="guide-links" aria-label="解説ページ">
@@ -170,6 +182,7 @@
 <script src="js/flags.js"></script>
 <script src="js/protocol-data.js"></script>
 <script src="js/judge.js"></script>
+<script src="js/choice-ids.js"></script>
 <script src="js/domain-exclusions.js"></script>
 <script src="js/domain-age.js"></script>
 <script src="js/domain-count.js"></script>

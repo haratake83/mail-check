@@ -2,8 +2,9 @@
 (function (g) {
   "use strict";
   var ENDPOINT = "/api/weekly-rank";
-  var GENRE = { delivery: "宅配便・配送業者", bank: "銀行・カード会社", ec: "通販サイト", carrier: "通信キャリア", gov: "官公庁・税務署", other: "その他・不明" };
-  var CONTENT = { undelivered: "不在通知・再配達", lock: "アカウント停止・ロック", unpaid: "未払い料金の請求", prize: "当選・給付金の案内", other: "その他・不明" };
+  var choices = g.MH_CHOICES || { GENRE: {}, CONTENT: {} };
+  var GENRE = choices.GENRE;
+  var CONTENT = choices.CONTENT;
   var EMPTY = "今週、10回以上判定された項目はまだありません。";
 
   function recordBody(input) {

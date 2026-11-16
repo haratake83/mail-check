@@ -151,7 +151,9 @@
         subject: $("subject").value,
         from_email: $("from_email").value,
         body: $("body").value,
-        channel: "email"
+        channel: "email",
+        sender_genre: radio("sender_genre"),
+        mail_content: radio("mail_content")
       });
     } catch (e) {
       if (gen !== generation) return;
