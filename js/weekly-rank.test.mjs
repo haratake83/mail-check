@@ -13,7 +13,8 @@ import {
   createCommandWeeklyStore,
   createWeeklyHandler,
   createWeeklyStore,
-  toRegistrable
+  toRegistrable,
+  allowWeeklyRequest
 } from "../api/weekly-rank.mjs";
 
 const require = createRequire(import.meta.url);
@@ -119,6 +120,25 @@ check("handler rejects an email address", bad.statusCode === 400);
 const empty = mockRes();
 await handler(req("GET"), empty);
 check("get returns only keys and counts", empty.statusCode === 200 && !JSON.stringify(empty.payload).includes("@") && empty.payload.domains[0].count === 10);
+const oldSafari = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example" } }, oldSafari);
+check("get without Sec-Fetch-Site is readable", oldSafari.statusCode === 200 && oldSafari.payload.domains[0].count === 10);
+const referred = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example", referer: "https://mail.example/index.html" } }, referred);
+check("get with a same-site referer is readable", referred.statusCode === 200);
+const foreignGet = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example", origin: "https://evil.example" } }, foreignGet);
+check("get with a foreign origin is refused", foreignGet.statusCode === 403);
+const foreignRef = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example", referer: "https://evil.example/list" } }, foreignRef);
+check("get with a foreign referer is refused", foreignRef.statusCode === 403);
+const crossGet = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example", "sec-fetch-site": "cross-site" } }, crossGet);
+check("get marked cross-site is refused", crossGet.statusCode === 403);
+const barePost = mockRes();
+await handler({ method: "POST", headers: { host: "mail.example" }, body: { domain: "example.com" } }, barePost);
+check("post without Sec-Fetch-Site stays refused", barePost.statusCode === 403);
+check("read check allows a headerless get and keeps post strict", allowWeeklyRequest("GET", { host: "mail.example" }) === true && allowWeeklyRequest("POST", { host: "mail.example" }) === false && allowWeeklyRequest("POST", { host: "mail.example", origin: "https://mail.example", "sec-fetch-site": "same-origin" }) === true);
 
 const sent = [];
 const commandStore = createCommandWeeklyStore(async function (commands) {

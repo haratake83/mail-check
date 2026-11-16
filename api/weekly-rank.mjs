@@ -41,6 +41,42 @@ export function toRegistrable(host) {
   return p.slice(-2).join(".");
 }
 
+function requestHost(headers) {
+  const raw = header(headers, "x-forwarded-host") || header(headers, "host");
+  return raw.split(",")[0].trim().toLowerCase();
+}
+
+function listedHost(value) {
+  if (!value) return "";
+  let u;
+  try { u = new URL(value); } catch (e) { return null; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  return u.host.toLowerCase();
+}
+
+// GET は、Sec-Fetch-Site が無い古いブラウザでも読めるようにする。
+// そのヘッダが無いときは Origin と Referer があれば照合し、どちらも無ければ閲覧だけ許す。
+// POST はこれまでどおり同一オリジンだけ。
+export function allowWeeklyRequest(method, headers) {
+  const h = headers || {};
+  if (String(method || "").toUpperCase() !== "GET") return isSameOrigin(h);
+  const host = requestHost(h);
+  if (!host) return false;
+  const site = header(h, "sec-fetch-site").trim().toLowerCase();
+  if (site && site !== "same-origin") return false;
+  const origin = header(h, "origin").trim();
+  const referer = header(h, "referer").trim() || header(h, "referrer").trim();
+  if (origin) {
+    const originHost = listedHost(origin);
+    if (!originHost || originHost !== host) return false;
+  }
+  if (referer) {
+    const refererHost = listedHost(referer);
+    if (!refererHost || refererHost !== host) return false;
+  }
+  return true;
+}
+
 function header(headers, name) {
   if (!headers) return "";
   if (typeof headers.get === "function") {
@@ -331,7 +367,7 @@ export function createWeeklyHandler(options) {
       unavailable(405);
       return;
     }
-    if (!isSameOrigin(req.headers || {})) {
+    if (!allowWeeklyRequest(req.method, req.headers || {})) {
       unavailable(403);
       return;
     }
