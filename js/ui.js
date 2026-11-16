@@ -37,14 +37,14 @@
     $("from_email").setAttribute("inputmode", "email");
     if ($("dn_hint")) $("dn_hint").textContent = "メールアプリに表示されている名前（例: ヤマト運輸）。判定のためだけに使い、保存や公開はしません。";
     $("body_label").textContent = "メール本文";
-    $("ctx_q").textContent = "このメールに心当たりはありますか？";
   }
 
   function clearAll() {
     generation += 1;
     if (window.MH_DOMAIN_AGE) window.MH_DOMAIN_AGE.cancel();
+    if (window.MH_DOMAIN_COUNT) window.MH_DOMAIN_COUNT.cancel();
     ["display_name", "subject", "from_email", "body"].forEach(function (id) { if ($(id)) $(id).value = ""; });
-    document.querySelectorAll('input[name="sender_genre"], input[name="mail_content"], input[name="context_answer"]').forEach(function (c) { c.checked = false; });
+    document.querySelectorAll('input[name="sender_genre"], input[name="mail_content"]').forEach(function (c) { c.checked = false; });
     hideChoiceErrors();
     judgmentKey = null;
     applyChannel();
@@ -62,8 +62,7 @@
 
   var CHOICE_GROUPS = [
     { name: "sender_genre", set: "genre_set", msg: "genre_missing" },
-    { name: "mail_content", set: "content_set", msg: "content_missing" },
-    { name: "context_answer", set: "context_set", msg: "context_missing" }
+    { name: "mail_content", set: "content_set", msg: "content_missing" }
   ];
   var GROUP_MSG = "この項目を選んでから、もう一度「判定する」を押してください。";
   var SUMMARY_MSG = "選んでいない項目があります。上の項目を選んでください。";
@@ -152,8 +151,9 @@
         subject: $("subject").value,
         from_email: $("from_email").value,
         body: $("body").value,
-        context_answer: radio("context_answer"),
-        channel: "email"
+        channel: "email",
+        sender_genre: radio("sender_genre"),
+        mail_content: radio("mail_content")
       });
     } catch (e) {
       if (gen !== generation) return;
@@ -166,6 +166,12 @@
     if (window.MH_DOMAIN_AGE) {
       var ageGen = gen;
       window.MH_DOMAIN_AGE.attach($("from_email").value, function () { return ageGen === generation; });
+    }
+    if (window.MH_DOMAIN_COUNT) {
+      var countGen = gen;
+      try {
+        window.MH_DOMAIN_COUNT.attach($("from_email").value, function () { return countGen === generation; });
+      } catch (e) { /* 回数の照会で結果を壊さない */ }
     }
     if (window.MH_WEEKLY && window.MH_DOMAIN_AGE) {
       var rankPlan = window.MH_DOMAIN_AGE.planLookup($("from_email").value);

@@ -583,15 +583,93 @@
   }
 
   // ---------- メイン ----------
+  var THEME_LIST = [
+    { id: "point_expiry", label: "ポイントやマイルの失効", re: /(ポイント|マイル|コイン).{0,16}(失効|有効期限)|(失効|有効期限).{0,16}(ポイント|マイル|コイン)|本日失効/ },
+    { id: "payment", label: "支払い・更新の未完了", re: /(未決済|支払[い]?手続[き]?未完了|更新手続[き]?が完了できませんでした|支払いエラー|支払エラー)/ },
+    { id: "fraud", label: "不正ログインや不正利用の知らせ", re: /不正ログイン|異常ログイン|不正利用/ },
+    { id: "refund_error", label: "還付金の振り込みエラー", re: null, test: function (n) { return /還付金/.test(n) && /(振込|振り込み)/.test(n) && /(エラー|失敗|不能|できません)/.test(n); } },
+    { id: "refund", label: "還付金や給付金の受け取り", re: /給付金|還付金の受け取り|キャンペーンの受け取り/ },
+    { id: "tax_cert", label: "住宅借入金等特別控除証明書の案内", re: /住宅借入金等特別控除証明書/ },
+    { id: "parcel", label: "荷物のお預かりや持ち戻り", re: /お届け荷物のお預かり|荷物のお預かり|持ち戻り|住所不明/ },
+    { id: "limit", label: "カードのご利用可能額の知らせ", re: /ご利用可能額|利用可能額の知/ },
+    { id: "etc", label: "ETCの有効期限の案内", re: /ETC.{0,24}(有効期限|期限切れ)|(有効期限|期限切れ).{0,16}ETC/ },
+    { id: "virus", label: "ウイルス感染や容量不足の警告", re: /ウイルス感染|マルウェア|容量の上限|容量不足|クラウド容量/ },
+    { id: "secret", label: "秘密鍵や復元フレーズの入力", re: /秘密鍵|復元フレーズ|リカバリーフレーズ|シードフレーズ/ },
+    { id: "mynumber", label: "マイナンバーの入力", re: /マイナンバー.{0,16}(更新|入力|確認|提出)/ },
+    { id: "lock", label: "アカウントの停止や凍結", re: /アカウント.{0,10}(停止|凍結|ロック)|メンバーシップ.{0,10}(停止|一時停止)/ },
+    { id: "unpaid", label: "未払いや引き落とし失敗の案内", re: /引き落とし(が)?失敗|引き落としできません|差押|差し押さえ|料金の未払い|未払い料金/ },
+    { id: "booking", label: "予約や利用明細の確認", re: /予約のキャンセル|予約キャンセル|利用明細/ },
+    { id: "freeze", label: "出金制限や資産の凍結", re: /出金制限|資産の凍結|ウォレット.{0,8}凍結/ }
+  ];
+  var THEME_ADVICE = {
+    point_expiry: "ポイントは、公式アプリで残高と期限を確認してください。",
+    secret: "秘密鍵・復元フレーズは、誰にも入力しないでください。",
+    mynumber: "マイナンバーは、メールの案内では入力しないでください。",
+    etc: "ETCは、公式サイトを自分で開いて確認してください。",
+    virus: "ウイルス感染や容量の警告は、公式の設定画面を自分で開いて確認してください。",
+    lock: "アカウントの停止や凍結は、公式アプリに自分でログインして確認してください。",
+    payment: "支払い方法は、公式アプリやブックマークから開いた公式サイトで確認してください。",
+    unpaid: "未払いや引き落としの案内は、公式アプリで請求の有無を確認してください。",
+    fraud: "不正利用やログインの知らせは、公式アプリで利用明細を確認してください。",
+    refund: "還付金や給付金の案内は、公式サイトを自分で開いて確認してください。",
+    refund_error: "還付金や給付金の案内は、公式サイトを自分で開いて確認してください。",
+    parcel: "不在や持ち戻りの案内は、配送会社の公式の荷物問い合わせで確認してください。",
+    booking: "予約や利用明細は、公式サイトを自分で開いて確認してください。",
+    freeze: "出金制限や資産の凍結の案内は、公式アプリを自分で開いて確認してください。"
+  };
+  var CHOICE_THEMES = {
+    point_expiry: ["point_expiry"],
+    reauth: ["secret", "mynumber"],
+    reservation: ["etc", "booking"],
+    virus: ["virus"],
+    lock: ["lock"],
+    payment_update: ["payment"],
+    unpaid: ["unpaid"],
+    fraud_alert: ["fraud"],
+    prize: ["refund", "refund_error"],
+    undelivered: ["parcel"],
+    points: ["point_expiry"],
+    crypto: ["secret", "freeze"],
+    travel: ["etc", "booking"],
+    it: ["virus", "lock"],
+    gov: ["refund", "refund_error", "unpaid", "mynumber"],
+    delivery: ["parcel"],
+    ec: ["lock", "payment"],
+    subscription: ["payment", "lock"],
+    card: ["fraud", "payment"],
+    bank: ["fraud", "unpaid", "freeze"],
+    carrier: ["unpaid", "lock"]
+  };
+  function themeHits(compact) {
+    var hits = [];
+    THEME_LIST.forEach(function (theme) {
+      var ok = theme.test ? theme.test(compact) : theme.re && theme.re.test(compact);
+      if (ok) hits.push({ id: theme.id, label: theme.label });
+    });
+    return hits;
+  }
+  function themeAdvice(input, hits) {
+    var selected = {};
+    [input && input.mail_content, input && input.sender_genre].forEach(function (key) {
+      (CHOICE_THEMES[key] || []).forEach(function (id) { selected[id] = 1; });
+    });
+    var lines = [];
+    hits.forEach(function (hit) {
+      var line = selected[hit.id] ? THEME_ADVICE[hit.id] : "";
+      if (line && lines.indexOf(line) < 0) lines.push(line);
+    });
+    return lines;
+  }
+
   function judge(input, opts) {
     opts = opts || {};
     var P = opts.protocol || g.MH_PROTOCOL;
     var routeEnabled = opts.routeEnabled === true; // テスト用モック。本番は常にfalse
     var res = {
       schema_version: P.schema_version, verdict: null, danger_level: "N", confidence_band: "low",
-      channel: "email", context_answer: "unknown", sender_kind: "unknown", safety_guarantees: false,
+      channel: "email", sender_kind: "unknown", safety_guarantees: false,
       input_issues: [], evidence: [], composite_rules: [], namespace_assessments: [], route_assessments: [],
-      gate_evaluations: [], auxiliary_flags: [], context_evidence: [], unknowns: [], urls_parsed: [],
+      gate_evaluations: [], auxiliary_flags: [], unknowns: [], urls_parsed: [],
       disclaimer_ja: "本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。",
       recommended_actions_ja: [], privacy: { retention: "minimize", mask: ["otp", "card", "account", "phone"] }
     };
@@ -600,10 +678,6 @@
     if (input.channel === "sms") res.unknowns.push("sms_channel_not_supported");
     else if (input.channel && input.channel !== "email") res.input_issues.push("channel_invalid");
     res.channel = ch;
-    var ctx = input.context_answer;
-    if (ctx === "yes" || ctx === "no" || ctx === "unknown") res.context_answer = ctx;
-    else { res.input_issues.push("context_invalid"); res.context_answer = "unknown"; }
-    res.context_evidence.push({ kind: "user_self_report", value: res.context_answer });
     var body = nfkc(input.body || "");
     if (!body.trim()) res.input_issues.push("body_empty");
     var display = nfkc(input.display_name || "");
@@ -832,6 +906,40 @@
       fromWeak = fromFree || fromUnrel;
     }
     if (ch === "email" && !sender) fromWeak = true;
+    // よく見られる手口。名前や語句だけでは危険度を上げない。
+    // 名乗った相手に officialKey があるときは、公式送信元リストの passes だけで一文を省く。
+    // いちばん長いドメインで決め、親へは戻らない。true は一文を省くだけで、判定区分は変えない。
+    // リストが無い相手は、これまでの送信元・ウェブ一致で一文を出さない。unknown は不一致にしない。
+    // 「こちら」「下記」だけではリンク扱いしない。本文の実リンクか、ファイルへの誘導があるときだけ。
+    // 危険度を上げる R01 は、送信元が不一致のときだけ、medium まで。
+    var ledgerOfficial = fromRel && ["send_matched", "web_aligned"].indexOf(fromRel.rel) >= 0;
+    var campOfficial = ledgerOfficial;
+    if (claim && claim.brand.officialKey && g.MH_OFFICIAL_SENDERS && typeof g.MH_OFFICIAL_SENDERS.passes === "function" && sender) {
+      campOfficial = g.MH_OFFICIAL_SENDERS.passes(sender.addr, claim.brand.officialKey);
+    }
+    var campHit = false;
+    var campNote = "";
+    var campLead = "";
+    if (!campOfficial) {
+      var campRaw = (input.body || "") + "\n" + (input.display_name || "");
+      var campN = nfkc(campRaw).replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\u00AD\uFEFF\s　]/g, "");
+      var campHits = themeHits(campN);
+      var campThemes = campHits.map(function (h) { return h.label; });
+      if (campThemes.length) {
+        var campFile = /(ダウンロード|ファイル|添付|開いてください|\.(pdf|zip|exe|docm|xlsm|scr)\b)/i.test(campRaw);
+        var campUrl = urls.some(function (u) { return u.source === "body"; });
+        if (campFile || campUrl) {
+          campHit = true;
+          campLead = campThemes.join("、") + "が広く見られる手口と一致します。しっかりと確認が必要です。※詐欺と確定したことにはなりません。";
+          var campMismatch = fromRel && ["unrelated", "typo", "free", "related", "other_entity"].indexOf(fromRel.rel) >= 0;
+          if (campMismatch) addEv("R01", "F_other", "campaign:" + campThemes[0], "medium", false, "");
+        }
+      }
+    }
+    res.campaign_review = campHit;
+    res.campaign_note = campNote;
+    res.campaign_lead = campLead;
+    res.theme_advice = themeAdvice(input, themeHits(nfkc((input.body || "") + "\n" + (input.display_name || "")).replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\u00AD\uFEFF\s　]/g, "")));
     var hasA11 = ev.some(function (e) { return e.rule_id === "A11"; });
     var routineGuard = routine && senderAligned && !fromTypo && !f.A01x && !f.reply_secret && !hasA11;
     f.routine_guard = routineGuard;
@@ -922,20 +1030,12 @@
 
     // --- verdict（§4.6–4.7） ---
     var fromMissing = res.input_issues.indexOf("from_unparseable") >= 0;
-    var otherBlock = res.input_issues.filter(function (x) { return x !== "context_invalid" && x !== "from_unparseable"; });
+    var otherBlock = res.input_issues.filter(function (x) { return x !== "from_unparseable"; });
     if (fromMissing && !otherBlock.length) res.verdict = "insufficient";
     else if (level === "S") res.verdict = "strong_suspicion";
     else if (otherBlock.length || fromMissing) res.verdict = "insufficient";
-    else {
-      var c2 = res.context_answer;
-      if (level === "M") res.verdict = "needs_review";
-      else if (level === "W") {
-        if (c2 === "yes") {
-          var exc = hasClaim || nWeak >= 2 || hasUrlMis || hasA04 || f.B04 || f.A01x;
-          res.verdict = exc ? "needs_review" : "no_clear_signal";
-        } else res.verdict = "needs_review";
-      } else res.verdict = c2 === "no" ? "needs_review" : "no_clear_signal";
-    }
+    else if (level === "M" || level === "W") res.verdict = "needs_review";
+    else res.verdict = "no_clear_signal";
     res.flags = f;
     ev.forEach(function (e) {
       if (e.spans && e.spans.length) e.spans = e.spans.map(redactSpan);
@@ -963,7 +1063,7 @@
   }
   function applyInputGapLead(res) {
     var issues = res.input_issues || [];
-    var onlyFrom = issues.indexOf("from_unparseable") >= 0 && issues.every(function (x) { return x === "from_unparseable" || x === "context_invalid"; });
+    var onlyFrom = issues.indexOf("from_unparseable") >= 0 && issues.every(function (x) { return x === "from_unparseable"; });
     if (res.verdict === "insufficient" && onlyFrom && (res.danger_level === "M" || res.danger_level === "S")) {
       res.display.input_gap_lead = {
         headline: "入力が足りませんが、注意すべき特徴があります",
@@ -995,22 +1095,21 @@
     if (r.verdict === "strong_suspicion") {
       d.tone = "red"; d.headline = "詐欺" + M + "の疑いが強いです";
       d.body = "詐欺" + M + "によく見られる強い特徴があります。" + M + "内のリンク・電話番号・添付ファイルは使わず、公式アプリやブックマークから直接確認してください。";
-      if (r.context_answer === "yes") d.notes.push("心当たりがあっても、本物の通知を装った可能性があります。");
+      if (r.campaign_review) d.body = (r.campaign_lead || "") + d.body;
       if (r.input_issues.length) d.notes.push("入力に不足があります（" + issueText(r.input_issues, ch).join("、") + "）。");
     } else if (r.verdict === "needs_review") {
       d.tone = "yellow"; d.headline = "注意が必要です（要確認）";
-      d.body = "本物かどうか確認が必要です。" + M + "内のリンクからではなく、公式アプリやブックマークした公式サイトで同じ通知があるか確認してください。";
-      if (r.context_answer === "no" && r.danger_level === "N") {
-        d.notes.push("心当たりがないとの回答を踏まえた確認のご案内です。これだけで詐欺と断定したわけではありません。");
-        if (!d.reasons.length) d.reasons.push("根拠：心当たりなしの回答のみ");
-      }
+      d.body = r.campaign_review
+        ? (r.campaign_lead || "") + M + "内のリンクからではなく、公式アプリやブックマークした公式サイトで同じ通知があるか確認してください。"
+        : "本物かどうか確認が必要です。" + M + "内のリンクからではなく、公式アプリやブックマークした公式サイトで同じ通知があるか確認してください。";
     } else if (r.verdict === "no_clear_signal") {
       d.tone = "grey"; d.headline = "このツールでは判断できませんでした。公式アプリやブックマークから直接確認してください";
       d.banner = "安全ではありません。" + M + "内のリンクは開かず、公式アプリやブックマークから直接確認してください。";
       d.body = "これは詐欺と確定した意味でも、安全と確認できた意味でもありません。送信元の偽装やリンクの本当の行き先を確認できず、特徴が出ない詐欺もあります。";
+      if (r.campaign_review) d.body = (r.campaign_lead || "") + d.body;
     } else {
       d.tone = "grey"; d.headline = "情報が足りず判定できません";
-      d.body = "メールに記載されたアドレス（@を含む全体）、本文、心当たりの回答を確認してください。メール内のリンクは開かないでください。";
+      d.body = "メールに記載されたアドレス（@を含む全体）と本文を確認してください。メール内のリンクは開かないでください。";
       d.notes = issueText(r.input_issues, ch);
     }
     d.actions = [
@@ -1020,6 +1119,9 @@
       "すでにパスワード等を入力した場合は、自分で開いた公式サイトでパスワードを変更し、カード会社・金融機関の公式窓口へ連絡してください。",
       "送金してしまった場合は、金融機関・警察・消費生活センターへ早めに相談してください（連絡先は公式サイトでご確認ください）。"
     ];
+    (r.theme_advice || []).forEach(function (line) {
+      if (line && d.actions.indexOf(line) < 0) d.actions.push(line);
+    });
     var auxNote = { B01: "お金に関する言葉があります。これだけでは詐欺とは断定しません。", B02: "リンクやボタンの案内があります。", B03: "宛名がありません。" };
     if (r.danger_level === "W" && r.verdict === "needs_review") {
       (r.auxiliary_flags || []).forEach(function (k) { if (k !== "B08" && auxNote[k] && d.reasons.indexOf(auxNote[k]) < 0) d.reasons.push(auxNote[k]); });
@@ -1030,7 +1132,7 @@
     return d;
   }
   function issueText(list) {
-    var T = { body_empty: "本文が空です", from_unparseable: "メールに記載されたアドレス（@を含む全体）を読み取れません", context_invalid: "「心当たり」の回答を選び直してください", channel_invalid: "このサービスはメールだけを判定します" };
+    var T = { body_empty: "本文が空です", from_unparseable: "メールに記載されたアドレス（@を含む全体）を読み取れません", channel_invalid: "このサービスはメールだけを判定します" };
     return list.map(function (x) { return T[x] || x; });
   }
 

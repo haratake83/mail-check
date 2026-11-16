@@ -43,12 +43,12 @@ const site = createServer(async (req, res) => {
     await weeklyHandler({ method: req.method, headers: req.headers, body }, res);
     return;
   }
-  if (req.method === "POST" && url.pathname === "/api/domain-created") {
+  if (req.method === "POST" && (url.pathname === "/api/domain-created" || url.pathname === "/api/domain-count")) {
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
     void Buffer.concat(chunks);
     res.writeHead(200, { ...staticHeaders, "Cache-Control": "no-store", "Content-Type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify(domainAgeReply));
+    res.end(JSON.stringify(url.pathname === "/api/domain-count" ? { status: "unavailable" } : domainAgeReply));
     return;
   }
   let p = decodeURIComponent(url.pathname);
@@ -153,9 +153,12 @@ async function setFields(input) {
     set("subject", ${JSON.stringify(input.subject || "")});
     set("from_email", ${JSON.stringify(input.from_email || "")});
     set("body", ${JSON.stringify(input.body || "")});
-    const ctxValue = ${JSON.stringify(input.context_answer || "unknown")};
-    const ctx = document.querySelector('input[name="context_answer"][value="' + ctxValue + '"]');
-    if (ctx) ctx.checked = true;
+    const pick = (name, value) => {
+      const el = document.querySelector('input[name="' + name + '"][value="' + value + '"]');
+      if (el) el.checked = true;
+    };
+    pick("sender_genre", ${JSON.stringify(input.sender_genre || "other")});
+    pick("mail_content", ${JSON.stringify(input.mail_content || "other")});
     return true;
   })()`);
 }
@@ -272,7 +275,7 @@ const look = await evaluate(`(() => {
     fontLoaded
   };
 })()`);
-check("header logo is 詐欺メールチェック.com inside the page", look.word === "詐欺メールチェック.com" && look.logoSrc === "img/sagi-mail-check-logo.png" && look.logoW === 1552 && look.logoH === 369 && look.title.startsWith("詐欺メール判定.com") && look.og === "詐欺メール判定.com", JSON.stringify(look));
+check("header logo is 詐欺メール判定.com inside the page", look.word === "詐欺メール判定.com" && look.logoSrc === "img/sagi-mail-check-logo.png" && look.logoW === 1552 && look.logoH === 369 && look.title.startsWith("詐欺メール判定.com") && look.og === "詐欺メール判定.com", JSON.stringify(look));
 check("header logo has no green frame", look.frameWidth === "0px" && /0,\s*0,\s*0,\s*0/.test(look.fill), JSON.stringify(look));
 check("judge button is white on navy with a 2px logo-green frame", /34,\s*76,\s*158/.test(look.btnBg) && /255,\s*255,\s*255/.test(look.btnColor) && /46,\s*172,\s*111/.test(look.btnBorder) && look.btnBorderWidth === "2px", JSON.stringify(look));
 check("explanations are white with a navy frame and cautions are sky blue", /255,\s*255,\s*255/.test(look.introBg) && /230,\s*244,\s*251/.test(look.warnBg) && look.warnBorder === "1px" && look.nameBg === look.warnBg && look.bodyBg === look.warnBg, JSON.stringify(look));
@@ -330,7 +333,6 @@ async function judged() {
     display_name: document.getElementById("display_name").value,
     from_email: document.getElementById("from_email").value,
     body: document.getElementById("body").value,
-    context_answer: (document.querySelector('input[name="context_answer"]:checked') || {}).value || "",
     channel: (document.querySelector('input[name="channel"]:checked') || {}).value || "email"
   }))`);
   const formBody = await evaluate(`document.getElementById("body").value`);
@@ -458,11 +460,13 @@ async function showAge(ageDays) {
 }
 const band1 = await showAge(30);
 check("30-day caution is visible and is not a scam verdict", band1.shown === true && band1.detail.mild === false && /248,\s*231,\s*193/.test(band1.detail.bg) && band1.detail.border === "1px" && band1.detail.text.includes(band1.createdJa) && band1.detail.text.includes("30日以内") && band1.detail.text.includes("しっかりと確認が必要です。※詐欺と確定したことにはなりません。") && !band1.detail.text.includes("このメールは詐欺です") && !band1.detail.text.includes("可能性が高い") && !band1.detail.text.includes("不審") && !band1.detail.text.includes("信頼性が低い") && band1.view.className.includes("v-grey") && band1.view.headline.includes("判断できませんでした"), band1.detail.text.slice(0, 180) + " / " + band1.detail.bg);
-check("the lookup post is only the registrable domain", band1.posts.length === 2 && band1.posts.every((r) => {
+check("the lookup post is only the registrable domain", band1.posts.length === 3 && band1.posts.every((r) => {
   const path = new URL(r.url).pathname;
   const data = JSON.parse(r.postData || "");
   const keys = Object.keys(data);
-  return (path === "/api/domain-created" || path === "/api/weekly-rank") && keys.length === 1 && data.domain === "example.com" && !r.postData.includes("@") && !r.postData.includes("yamada") && !r.postData.includes("山田") && !r.postData.includes("重要") && !r.postData.includes("secret-path");
+  const domainOnly = (path === "/api/domain-created" || path === "/api/domain-count") && keys.length === 1 && data.domain === "example.com";
+  const weekly = path === "/api/weekly-rank" && keys.every((key) => key === "domain" || key === "genre" || key === "content") && data.domain === "example.com";
+  return (domainOnly || weekly) && !r.postData.includes("@") && !r.postData.includes("yamada") && !r.postData.includes("山田") && !r.postData.includes("重要") && !r.postData.includes("secret-path");
 }), JSON.stringify(band1.posts));
 await evaluate(`document.querySelector(".domain-age-note").scrollIntoView({ block: "center" })`);
 await shot("domain-age-band1-desktop.png", false);
@@ -495,10 +499,10 @@ const posts = net.filter((r) => r.method === "POST");
 function domainPostOnly(r) {
   try {
     const u = new URL(r.url);
-    if (u.pathname !== "/api/domain-created" && u.pathname !== "/api/weekly-rank") return false;
+    if (u.pathname !== "/api/domain-created" && u.pathname !== "/api/weekly-rank" && u.pathname !== "/api/domain-count") return false;
     const data = JSON.parse(r.postData || "");
     const keys = Object.keys(data);
-    const allowed = { domain: 1, genre: 1, content: 1 };
+    const allowed = u.pathname === "/api/weekly-rank" ? { domain: 1, genre: 1, content: 1 } : { domain: 1 };
     return keys.length >= 1 && keys.every((key) => allowed[key]) && data.domain === "example.com" && !String(r.postData).includes("@");
   } catch (e) { return false; }
 }
@@ -512,7 +516,7 @@ check("network hosts stay on the local audit server", foreign.length === 0, JSON
 const typesSeen = {};
 net.forEach((r) => { typesSeen[r.type || r.when || "unknown"] = (typesSeen[r.type || r.when || "unknown"] || 0) + 1; });
 
-const sourceFiles = ["js/judge.js", "js/ui.js", "js/domain-age.js", "js/weekly-rank.js", "js/protocol-data.js", "index.html"];
+const sourceFiles = ["js/judge.js", "js/ui.js", "js/domain-age.js", "js/domain-count.js", "js/weekly-rank.js", "js/protocol-data.js", "index.html"];
 const sourceIndicators = [];
 const indicatorRe = /fetch\s*\(|new\s+Image\s*\(|import\s*\(|sendBeacon\s*\(|XMLHttpRequest|WebSocket|localStorage|sessionStorage|indexedDB/g;
 for (const rel of sourceFiles) {
@@ -522,7 +526,8 @@ for (const rel of sourceFiles) {
 }
 const ageSrc = readFileSync(path.join(root, "js/domain-age.js"), "utf8");
 const weekSrc = readFileSync(path.join(root, "js/weekly-rank.js"), "utf8");
-check("browser network calls stay on the two same-origin endpoints", sourceIndicators.length === 2 && sourceIndicators.every((s) => s.hits.length === 1 && s.hits[0] === "fetch(") && ageSrc.includes('fetch(ENDPOINT') && ageSrc.includes('"/api/domain-created"') && weekSrc.includes('fetch(ENDPOINT') && weekSrc.includes('"/api/weekly-rank"') && !weekSrc.includes("rdap.org"), JSON.stringify(sourceIndicators));
+const countSrc = readFileSync(path.join(root, "js/domain-count.js"), "utf8");
+check("browser network calls stay on the three same-origin endpoints", sourceIndicators.length === 3 && sourceIndicators.every((s) => s.hits.length === 1 && s.hits[0] === "fetch(") && ageSrc.includes('fetch(ENDPOINT') && ageSrc.includes('"/api/domain-created"') && weekSrc.includes('fetch(ENDPOINT') && weekSrc.includes('"/api/weekly-rank"') && countSrc.includes('fetch(ENDPOINT') && countSrc.includes('"/api/domain-count"') && !weekSrc.includes("rdap.org"), JSON.stringify(sourceIndicators));
 
 const report = {
   measured_at_jst: new Date(Date.now() + 9 * 3600 * 1000).toISOString().replace("Z", "+09:00"),

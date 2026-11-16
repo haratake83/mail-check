@@ -2,7 +2,13 @@
 // 残すのは登録ドメインと、選択されたジャンル・内容の回数だけ。メールアドレスは残さない。
 import net from "node:net";
 import tls from "node:tls";
+import { createRequire } from "node:module";
 import { normalizeDomain, isSameOrigin } from "./domain-created.mjs";
+
+const require = createRequire(import.meta.url);
+require("../js/domain-exclusions.js");
+require("../js/choice-ids.js");
+const isExcludedDomain = globalThis.MH_DOMAIN_EXCLUSIONS.isExcludedDomain;
 
 export const WEEK_MS = 7 * 86400000;
 export const MIN_COUNT = 10;
@@ -11,21 +17,8 @@ const EVENT_KEY = "mc:week:events";
 
 const SLD = { co: 1, or: 1, ne: 1, go: 1, ac: 1, ad: 1, ed: 1, gr: 1, lg: 1, com: 1, net: 1, org: 1, gov: 1, edu: 1 };
 
-export const GENRE_LABELS = {
-  delivery: "宅配便・配送業者",
-  bank: "銀行・カード会社",
-  ec: "通販サイト",
-  carrier: "通信キャリア",
-  gov: "官公庁・税務署",
-  other: "その他・不明"
-};
-export const CONTENT_LABELS = {
-  undelivered: "不在通知・再配達",
-  lock: "アカウント停止・ロック",
-  unpaid: "未払い料金の請求",
-  prize: "当選・給付金の案内",
-  other: "その他・不明"
-};
+export const GENRE_LABELS = globalThis.MH_CHOICES.GENRE;
+export const CONTENT_LABELS = globalThis.MH_CHOICES.CONTENT;
 
 export function toRegistrable(host) {
   const p = String(host || "").split(".");
@@ -34,6 +27,42 @@ export function toRegistrable(host) {
   const sld = p[p.length - 2];
   if (tld.length === 2 && SLD[sld]) return p.slice(-3).join(".");
   return p.slice(-2).join(".");
+}
+
+function requestHost(headers) {
+  const raw = header(headers, "x-forwarded-host") || header(headers, "host");
+  return raw.split(",")[0].trim().toLowerCase();
+}
+
+function listedHost(value) {
+  if (!value) return "";
+  let u;
+  try { u = new URL(value); } catch (e) { return null; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  return u.host.toLowerCase();
+}
+
+// GET は、Sec-Fetch-Site が無い古いブラウザでも読めるようにする。
+// そのヘッダが無いときは Origin と Referer があれば照合し、どちらも無ければ閲覧だけ許す。
+// POST はこれまでどおり同一オリジンだけ。
+export function allowWeeklyRequest(method, headers) {
+  const h = headers || {};
+  if (String(method || "").toUpperCase() !== "GET") return isSameOrigin(h);
+  const host = requestHost(h);
+  if (!host) return false;
+  const site = header(h, "sec-fetch-site").trim().toLowerCase();
+  if (site && site !== "same-origin") return false;
+  const origin = header(h, "origin").trim();
+  const referer = header(h, "referer").trim() || header(h, "referrer").trim();
+  if (origin) {
+    const originHost = listedHost(origin);
+    if (!originHost || originHost !== host) return false;
+  }
+  if (referer) {
+    const refererHost = listedHost(referer);
+    if (!refererHost || refererHost !== host) return false;
+  }
+  return true;
 }
 
 function header(headers, name) {
@@ -74,6 +103,7 @@ export function rankRows(events, kind, labelOf) {
     if (count < MIN_COUNT) return;
     const label = labelOf(key);
     if (!label || label.indexOf("@") >= 0) return;
+    if (kind === "domain" && isExcludedDomain(key)) return;
     rows.push({ key: key, label: label, count: count });
   });
   rows.sort(function (a, b) {
@@ -101,6 +131,7 @@ export function judgmentEvents(input, at) {
   const host = normalizeDomain(input.domain);
   const domain = host ? toRegistrable(host) : "";
   if (!domain || domain.indexOf("@") >= 0) return null;
+  if (isExcludedDomain(domain)) return null;
   if (input.genre != null && input.genre !== "" && !GENRE_LABELS[input.genre]) return null;
   if (input.content != null && input.content !== "" && !CONTENT_LABELS[input.content]) return null;
   const events = [{ kind: "domain", key: domain, at: at }];
@@ -324,7 +355,7 @@ export function createWeeklyHandler(options) {
       unavailable(405);
       return;
     }
-    if (!isSameOrigin(req.headers || {})) {
+    if (!allowWeeklyRequest(req.method, req.headers || {})) {
       unavailable(403);
       return;
     }

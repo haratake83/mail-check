@@ -13,11 +13,13 @@ import {
   createCommandWeeklyStore,
   createWeeklyHandler,
   createWeeklyStore,
-  toRegistrable
+  toRegistrable,
+  allowWeeklyRequest
 } from "../api/weekly-rank.mjs";
 
 const require = createRequire(import.meta.url);
 require("./protocol-data.js");
+require("./official-senders.js");
 require("./judge.js");
 require("./domain-age.js");
 require("./weekly-rank.js");
@@ -119,6 +121,25 @@ check("handler rejects an email address", bad.statusCode === 400);
 const empty = mockRes();
 await handler(req("GET"), empty);
 check("get returns only keys and counts", empty.statusCode === 200 && !JSON.stringify(empty.payload).includes("@") && empty.payload.domains[0].count === 10);
+const oldSafari = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example" } }, oldSafari);
+check("get without Sec-Fetch-Site is readable", oldSafari.statusCode === 200 && oldSafari.payload.domains[0].count === 10);
+const referred = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example", referer: "https://mail.example/index.html" } }, referred);
+check("get with a same-site referer is readable", referred.statusCode === 200);
+const foreignGet = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example", origin: "https://evil.example" } }, foreignGet);
+check("get with a foreign origin is refused", foreignGet.statusCode === 403);
+const foreignRef = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example", referer: "https://evil.example/list" } }, foreignRef);
+check("get with a foreign referer is refused", foreignRef.statusCode === 403);
+const crossGet = mockRes();
+await handler({ method: "GET", headers: { host: "mail.example", "sec-fetch-site": "cross-site" } }, crossGet);
+check("get marked cross-site is refused", crossGet.statusCode === 403);
+const barePost = mockRes();
+await handler({ method: "POST", headers: { host: "mail.example" }, body: { domain: "example.com" } }, barePost);
+check("post without Sec-Fetch-Site stays refused", barePost.statusCode === 403);
+check("read check allows a headerless get and keeps post strict", allowWeeklyRequest("GET", { host: "mail.example" }) === true && allowWeeklyRequest("POST", { host: "mail.example" }) === false && allowWeeklyRequest("POST", { host: "mail.example", origin: "https://mail.example", "sec-fetch-site": "same-origin" }) === true);
 
 const sent = [];
 const commandStore = createCommandWeeklyStore(async function (commands) {
@@ -138,7 +159,7 @@ const css = fs.readFileSync(path.join(root, "css/app.css"), "utf8");
 const rankCss = css.slice(css.indexOf(".weekly-rankings {"), css.indexOf(".weekly-rank h2"));
 const recordLine = ui.split("\n").filter(function (line) { return line.includes("MH_WEEKLY.record"); })[0] || "";
 check("record runs after render and not from the clear button", ui.indexOf("render(r)") < ui.indexOf("MH_WEEKLY.record") && recordLine.includes("rankPlan.body.domain") && !recordLine.includes("display_name") && !recordLine.includes("subject") && !recordLine.includes("from_email"));
-check("footer order is disclaimer, rankings, note, version, guides", html.indexOf("これは参考情報です。最終的な判断はご自身でお願いします。") < html.indexOf("本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。") && html.indexOf("本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。") < html.indexOf("週間判定ドメインランキング") && html.indexOf("週間判定ドメインランキング") < html.indexOf("週間判定ジャンルランキング") && html.indexOf("週間判定ジャンルランキング") < html.indexOf("週間判定メール内容ランキング") && html.indexOf("週間判定メール内容ランキング") < html.indexOf("直近7日間に、10回以上判定されたものを、多い順に最大10件まで掲載します。") && html.indexOf("直近7日間に、10回以上判定されたものを、多い順に最大10件まで掲載します。") < html.indexOf("表示 v0.10.5") && html.indexOf("表示 v0.10.5") < html.indexOf("guides/how-to-spot.html"));
+check("footer order is disclaimer, rankings, note, version, guides", html.indexOf("これは参考情報です。最終的な判断はご自身でお願いします。") < html.indexOf("本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。") && html.indexOf("本結果は入力された文字情報だけに基づく補助的な判定で、安全性や正当性を保証するものではありません。") < html.indexOf("週間判定ドメインランキング") && html.indexOf("週間判定ドメインランキング") < html.indexOf("週間判定ジャンルランキング") && html.indexOf("週間判定ジャンルランキング") < html.indexOf("週間判定メール内容ランキング") && html.indexOf("週間判定メール内容ランキング") < html.indexOf("直近7日間に、10回以上判定されたものを、多い順に最大10件まで掲載します。") && html.indexOf("直近7日間に、10回以上判定されたものを、多い順に最大10件まで掲載します。") < html.indexOf("表示 v0.10.9") && html.indexOf("表示 v0.10.9") < html.indexOf("guides/how-to-spot.html"));
 check("ranking comments are real comments", html.includes("<!-- ここは週間判定ドメインランキングの欄です -->") && html.includes("<!-- ここは週間判定ジャンルランキングの欄です -->") && html.includes("<!-- ここは週間判定メール内容ランキングの欄です -->"));
 check("weekly rankings are white with no card", rankCss.includes("background: #fff") && rankCss.includes("border: 0") && !rankCss.includes("var(--beige)") && !rankCss.includes("border-radius: 8px"));
 check("ranking note does not assert fraud or safety", html.includes("よく判定に使われたという情報であり、詐欺であることも、安全であることも意味しません。") && !html.includes("低リスク") && !html.includes("高リスク") && !html.includes("可能性が高い") && !html.includes("信頼性が低い"));

@@ -101,8 +101,8 @@
       idempotency_key: fields.idempotency_key || freshKey()
     };
     // 送信元の名前は集めない。選択式のジャンルと内容だけ付ける。
-    var genres = pickAllowed(fields.genres, ["delivery", "bank", "ec", "carrier", "gov", "other"]);
-    var tactics = pickAllowed(fields.tactics, ["undelivered", "lock", "unpaid", "prize"]);
+    var genres = pickAllowed(fields.genres, ["gov", "ec", "delivery", "bank", "card", "carrier", "points", "subscription", "it", "travel", "crypto", "other"]);
+    var tactics = pickAllowed(fields.tactics, ["undelivered", "lock", "payment_update", "unpaid", "fraud_alert", "prize", "point_expiry", "virus", "reservation", "reauth", "other"]);
     if (genres.length) payload.genres = genres;
     if (tactics.length) payload.tactics = tactics;
     return { ok: true, payload: payload };

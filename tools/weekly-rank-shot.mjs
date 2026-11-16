@@ -49,7 +49,7 @@ const site = createServer(async (req, res) => {
     await weekly({ method: req.method, headers: req.headers, body }, res);
     return;
   }
-  if (req.method === "POST" && url.pathname === "/api/domain-created") {
+  if (req.method === "POST" && (url.pathname === "/api/domain-created" || url.pathname === "/api/domain-count")) {
     for await (const chunk of req) void chunk;
     res.writeHead(200, { ...staticHeaders, "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify({ status: "unavailable" }));
@@ -149,6 +149,10 @@ await evaluate(`(() => {
   document.getElementById("subject").value = "重要なお知らせ";
   document.getElementById("from_email").value = "yamada.taro@example.com";
   document.getElementById("body").value = "山田様、本日の連絡です。";
+  const genre = document.querySelector('input[name="sender_genre"][value="other"]');
+  const content = document.querySelector('input[name="mail_content"][value="other"]');
+  if (genre) genre.checked = true;
+  if (content) content.checked = true;
   document.getElementById("check").click();
   return true;
 })()`);

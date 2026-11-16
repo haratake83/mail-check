@@ -15,7 +15,7 @@
 <header class="site-header">
   <div class="site-header-inner">
     <!-- ここはサイトのヘッダーです -->
-    <h1 class="site-title"><a class="site-wordmark" href="index.html"><img src="img/sagi-mail-check-logo.png" alt="詐欺メールチェック.com" width="1552" height="369"></a></h1>
+    <h1 class="site-title"><a class="site-wordmark" href="index.html"><img src="img/sagi-mail-check-logo.png" alt="詐欺メール判定.com" width="1552" height="369"></a></h1>
   </div>
 </header>
 <main class="site-main" id="content">
@@ -61,11 +61,17 @@
       <legend id="genre_legend">送信元のジャンル</legend>
       <p class="choice-help">該当する項目にチェックを入れてください</p>
       <div class="choice-group context-group">
-        <label class="context-option"><input type="radio" name="sender_genre" value="delivery"> 宅配便・配送業者</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="bank"> 銀行・カード会社</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="ec"> 通販サイト</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="carrier"> 通信キャリア</label>
-        <label class="context-option"><input type="radio" name="sender_genre" value="gov"> 官公庁・税務署</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="gov"> 公的機関・自治体</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="ec"> 通販・EC</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="delivery"> 宅配・配送</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="bank"> 銀行・証券</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="card"> クレジットカード</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="carrier"> 携帯・通信会社</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="points"> ポイント・マイル</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="subscription"> 動画・サブスク</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="it"> IT・SNS・セキュリティ</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="travel"> 旅行・交通・チケット</label>
+        <label class="context-option"><input type="radio" name="sender_genre" value="crypto"> 暗号資産・投資</label>
         <label class="context-option"><input type="radio" name="sender_genre" value="other"> その他・不明</label>
       </div>
       <p class="choice-missing" id="genre_missing" hidden></p>
@@ -76,24 +82,19 @@
       <legend id="content_legend">メールの内容</legend>
       <p class="choice-help">該当する項目にチェックを入れてください</p>
       <div class="choice-group context-group">
-        <label class="context-option"><input type="radio" name="mail_content" value="undelivered"> 不在通知・再配達</label>
-        <label class="context-option"><input type="radio" name="mail_content" value="lock"> アカウント停止・ロック</label>
-        <label class="context-option"><input type="radio" name="mail_content" value="unpaid"> 未払い料金の請求</label>
-        <label class="context-option"><input type="radio" name="mail_content" value="prize"> 当選・給付金の案内</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="undelivered"> 不在通知・再配達・持ち戻り</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="lock"> アカウント停止・凍結・ロック</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="payment_update"> 支払い方法の更新・支払いエラー</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="unpaid"> 未払い・引き落とし失敗・差し押さえ予告</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="fraud_alert"> 不正利用・異常ログインの検知</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="prize"> 還付金・給付金・キャンペーンの受け取り</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="point_expiry"> ポイント失効・有効期限切れ</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="virus"> ウイルス感染・容量不足の警告</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="reservation"> 予約確認・利用明細の確認</label>
+        <label class="context-option"><input type="radio" name="mail_content" value="reauth"> 再認証・秘密鍵やマイナンバーの入力</label>
         <label class="context-option"><input type="radio" name="mail_content" value="other"> その他・不明</label>
       </div>
       <p class="choice-missing" id="content_missing" hidden></p>
-    </fieldset>
-
-    <fieldset class="choice-set" id="context_set" tabindex="-1">
-      <legend id="ctx_q">このメールに心当たりはありますか？</legend>
-      <p class="choice-help">該当する項目にチェックを入れてください</p>
-      <div class="context-group">
-        <label class="context-option"><input type="radio" name="context_answer" value="yes"> はい（心当たりがある）</label>
-        <label class="context-option"><input type="radio" name="context_answer" value="no"> いいえ（心当たりがない）</label>
-        <label class="context-option"><input type="radio" name="context_answer" value="unknown"> わからない</label>
-      </div>
-      <p class="choice-missing" id="context_missing" hidden></p>
     </fieldset>
 
     <div class="after-form-notes">
@@ -101,8 +102,9 @@
       <p>本文（本文中のURLを含む）は、お使いの端末（ブラウザ）の中だけで判定します。本文やURLが当サイトに送られたり、保存されたりすることはありません。</p>
       <p>ほかのサイトと同じように、ページを開いた時刻やブラウザの種類などの一般的なアクセス記録は配信会社に残りますが、入力した内容は含まれません。</p>
       <p>画面の入力は「入力を消す」ボタンですぐ消せます。共用の端末では、使い終わったらページを閉じてください。</p>
-      <p id="privacy_plan">判定に入力する情報は、メールに記載された名前、件名、メールアドレス、本文、および選択式の送信元ジャンルとメールの内容です。送信元の名前は、判定のためにお使いの端末の中だけで使い、サーバーに送ったり、保存・公開したりしません。週間ランキングのために送るのは、差出人アドレスの登録ドメインと、選択したジャンル・内容だけです。名前、メールアドレス、件名、本文、URL、本文内のリンク先ドメインは送りません。件数は直近7日間だけ残し、その後は捨てます。本文とURLは統計に使いません。メールアドレスの一覧は作りません。</p>
+      <p id="privacy_plan">判定に入力する情報は、メールに記載された名前、件名、メールアドレス、本文、および選択式の送信元ジャンルとメールの内容です。送信元の名前は、判定のためにお使いの端末の中だけで使い、サーバーに送ったり、保存・公開したりしません。週間ランキングのために送るのは、差出人アドレスの登録ドメインと、選んだジャンル、選んだメールの内容、それに判定した日時だけです。名前、メールアドレス、件名、本文、URL、本文内のリンク先ドメインは送りません。ランキングの記録は7日たつと捨てます。本文とURLは統計に使いません。メールアドレスの一覧は作りません。</p>
       <p id="privacy_domain">差出人アドレスの登録ドメイン（@より後ろの、登録の単位とみなすドメインだけ）は、公開の登録情報から取得日を調べるため当サイトへ送ります。メールアドレスの全体、@より前、名前、件名、本文、URLは送りません。取得日が分からないことは、危険とも安全とも扱いません。同じ照会を繰り返さないため、登録ドメインと取得日（年月日）だけを、最大7日間、このサーバのメモリに残します。この取得日は、統計、履歴、公開の一覧、週間ランキングには使いません。7日を過ぎた記録は捨てます。取れなかった照会は数分だけ覚え、1週間は残しません。登録者の名前や連絡先は残しません。</p>
+      <p id="privacy_count">判定したあと、差出人アドレスの登録ドメイン（@より後ろの、登録の単位とみなすドメイン）と、判定した日時だけを、日本にあるサーバ（エックスサーバー）に残します。これは、そのドメインが何回判定されたかを数えるためです。1日・1週間・1ヶ月・半年・1年の内訳は400日まで残し、それより古い内訳は捨てます。これまでの合計は残します。ドメインごとのページを開いた回数も、ドメイン名と日時だけを数えます。IPアドレス、ブラウザの種類（User-Agent）、メールアドレスそのもの、本文、URLは残しません。フリーメール、携帯会社のアドレス、公的なドメイン（go.jp、lg.jp、ac.jpなど）、大手の会社の公式ドメインは、回数にもランキングにも残しません。</p>
       <a class="privacy-page-link" href="privacy.html">プライバシーポリシー</a>
     </div>
     <p id="history_pending">受付履歴の機能は準備中です。</p>
@@ -145,6 +147,8 @@
         <h2>週間判定ドメインランキング</h2>
         <div id="rank_domains"></div>
       </section>
+      <!-- ドメインページ専用の欄（サーバー側で中身を入れる） -->
+      <section id="domain-page-info" class="weekly-rank" hidden></section>
       <section class="weekly-rank">
         <!-- ここは週間判定ジャンルランキングの欄です -->
         <h2>週間判定ジャンルランキング</h2>
@@ -158,12 +162,12 @@
       <p class="weekly-rank-note">直近7日間に、10回以上判定されたものを、多い順に最大10件まで掲載します。よく判定に使われたという情報であり、詐欺であることも、安全であることも意味しません。</p>
     </div>
     <!-- ここは版表示の欄です -->
-    <p class="body-notes">表示 v0.10.5／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／本文の判定はブラウザ内／取得日の照会と週間ランキング／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
+    <p class="body-notes">表示 v0.10.9／判定プロトコル v0.10（スキーマ 0.9-jp-email）／メールアドレスの差出人だけを判定／本文の判定はブラウザ内／取得日の照会、判定回数、週間ランキング／精度は未測定です／本番の判定経路として承認されたものではありません。</p>
     <p><a class="terms-public" href="terms.html" hidden>利用規約（下書き）</a></p>
     <p id="list_link" hidden><a href="list.html">判定に使われたアドレス一覧</a></p>
     <nav class="guide-links" aria-label="解説ページ">
       <!-- ここは解説ページへの案内の欄です -->
-      <a href="about.html">詐欺メールチェック.comとは？</a>
+      <a href="about.html">詐欺メール判定.comとは？</a>
       <a href="privacy.html">プライバシーポリシー</a>
       <a href="guides/how-to-spot.html">詐欺メールの見分け方・特徴</a>
       <a href="guides/if-you-opened.html">怪しいメールのリンクを開いてしまったら</a>
@@ -177,8 +181,12 @@
 </main>
 <script src="js/flags.js"></script>
 <script src="js/protocol-data.js"></script>
+<script src="js/official-senders.js"></script>
 <script src="js/judge.js"></script>
+<script src="js/choice-ids.js"></script>
+<script src="js/domain-exclusions.js"></script>
 <script src="js/domain-age.js"></script>
+<script src="js/domain-count.js"></script>
 <script src="js/weekly-rank.js"></script>
 <script src="js/stage2-public.js"></script>
 <script src="js/ui.js"></script>
