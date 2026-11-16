@@ -8,9 +8,21 @@ const judge = globalThis.MH_judge;
 const base = { channel: "email", subject: "" };
 
 function ev(r, id) { return (r.evidence || []).some((e) => e.rule_id === id); }
+const PHRASE = "が広く見られる手口と一致します。しっかりと確認が必要です。※詐欺と確定したことにはなりません。";
+function renderedText(r) {
+  const d = r.display || {};
+  return [d.headline, d.banner, d.body, ...(d.notes || []), ...(d.reasons || []), ...(d.actions || [])].join("\n");
+}
+function phraseCount(r) {
+  const t = renderedText(r);
+  let n = 0;
+  let i = 0;
+  while ((i = t.indexOf(PHRASE, i)) >= 0) { n++; i += PHRASE.length; }
+  return n;
+}
 function hasWording(r) {
-  const t = ((r.display && r.display.body) || "") + "\n" + ((r.display && r.display.reasons) || []).join("\n");
-  return t.includes("が広く見られる手口と一致します") && t.includes("しっかりと確認が必要です") && t.includes("※詐欺と確定したことにはなりません") && !t.includes("このメールは詐欺です") && !t.includes("確実に詐欺") && !t.includes("可能性が高い") && !t.includes("不審") && !/安全です|低リスク|高リスク|信頼性が低い/.test(t);
+  const t = renderedText(r);
+  return phraseCount(r) === 1 && t.includes(PHRASE) && !t.includes("このメールは詐欺です") && !t.includes("確実に詐欺") && !t.includes("可能性が高い") && !t.includes("不審") && !/安全です|低リスク|高リスク|信頼性が低い/.test(t);
 }
 
 const rows = [
@@ -38,9 +50,10 @@ for (const [id, inp, levels, expectR01, expectWording] of rows) {
   const hasR01 = ev(r, "R01");
   const levelOk = levels ? levels.includes(r.danger_level) : true;
   const word = hasWording(r);
-  const ok = levelOk && hasR01 === expectR01 && word === expectWording && r.safety_guarantees === false;
+  const once = phraseCount(r) === (expectWording ? 1 : 0);
+  const ok = levelOk && hasR01 === expectR01 && word === expectWording && once && r.safety_guarantees === false;
   if (ok) pass++;
-  console.log(`${ok ? "PASS" : "FAIL"}  ${id}: ${r.danger_level}/${r.verdict} R01=${hasR01} wording=${word}`);
+  console.log(`${ok ? "PASS" : "FAIL"}  ${id}: ${r.danger_level}/${r.verdict} R01=${hasR01} wording=${word} times=${phraseCount(r)}`);
   if (!ok) {
     console.log("      expect R01=" + expectR01 + " wording=" + expectWording + (levels ? " level=" + levels.join("|") : ""));
     console.log("      ev=" + (r.evidence || []).map((e) => e.rule_id + ":" + e.strength).join(","));

@@ -854,9 +854,8 @@
         if (campFile || campUrl) {
           campHit = true;
           campLead = campThemes.join("、") + "が広く見られる手口と一致します。しっかりと確認が必要です。※詐欺と確定したことにはなりません。";
-          campNote = campLead + "本文のリンクやファイルは開かず、公式アプリやブックマークから確認してください。";
           var campMismatch = fromRel && ["unrelated", "typo", "free", "related", "other_entity"].indexOf(fromRel.rel) >= 0;
-          if (campMismatch) addEv("R01", "F_other", "campaign:" + campThemes[0], "medium", false, campNote);
+          if (campMismatch) addEv("R01", "F_other", "campaign:" + campThemes[0], "medium", false, "");
         }
       }
     }
@@ -1045,9 +1044,6 @@
     var auxNote = { B01: "お金に関する言葉があります。これだけでは詐欺とは断定しません。", B02: "リンクやボタンの案内があります。", B03: "宛名がありません。" };
     if (r.danger_level === "W" && r.verdict === "needs_review") {
       (r.auxiliary_flags || []).forEach(function (k) { if (k !== "B08" && auxNote[k] && d.reasons.indexOf(auxNote[k]) < 0) d.reasons.push(auxNote[k]); });
-    }
-    if (r.campaign_review && r.campaign_note && !d.reasons.some(function (n) { return n.indexOf("しっかりと確認が必要です") >= 0; })) {
-      d.reasons.unshift(r.campaign_note);
     }
     if ((r.unknowns || []).indexOf("unlisted_brand_claim") >= 0 && (r.evidence || []).length) {
       d.notes.push("名乗っている名前は、このツールの台帳では確認できない相手です。未掲載は公式でも非公式でも断定できません。");
