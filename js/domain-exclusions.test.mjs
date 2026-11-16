@@ -7,6 +7,7 @@ import { judgmentEvents, rankingsFromEvents } from "../api/weekly-rank.mjs";
 const require = createRequire(import.meta.url);
 require("./domain-exclusions.js");
 require("./protocol-data.js");
+require("./official-senders.js");
 require("./judge.js");
 require("./domain-age.js");
 require("./domain-count.js");

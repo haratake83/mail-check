@@ -19,6 +19,7 @@ import {
 
 const require = createRequire(import.meta.url);
 require("./protocol-data.js");
+require("./official-senders.js");
 require("./judge.js");
 require("./domain-age.js");
 require("./weekly-rank.js");

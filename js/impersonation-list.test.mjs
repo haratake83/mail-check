@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { GENRE_LABELS, CONTENT_LABELS } from "../api/weekly-rank.mjs";
 const require = createRequire(import.meta.url);
 require("./protocol-data.js");
+require("./official-senders.js");
 require("./judge.js");
 require("./choice-ids.js");
 const judge = globalThis.MH_judge;

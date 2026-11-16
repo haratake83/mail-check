@@ -4,6 +4,7 @@ import fs from "fs";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 require("./protocol-data.js");
+require("./official-senders.js");
 require("./judge.js");
 const judge = globalThis.MH_judge;
 const base = globalThis.MH_PROTOCOL;

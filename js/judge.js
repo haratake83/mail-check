@@ -907,10 +907,16 @@
     }
     if (ch === "email" && !sender) fromWeak = true;
     // よく見られる手口。名前や語句だけでは危険度を上げない。
-    // 公式の送信元（台帳の送信元・ウェブと一致）では出さない。unknown は不一致にしない。
+    // 名乗った相手に officialKey があるときは、公式送信元リストの passes だけで一文を省く。
+    // いちばん長いドメインで決め、親へは戻らない。true は一文を省くだけで、判定区分は変えない。
+    // リストが無い相手は、これまでの送信元・ウェブ一致で一文を出さない。unknown は不一致にしない。
     // 「こちら」「下記」だけではリンク扱いしない。本文の実リンクか、ファイルへの誘導があるときだけ。
     // 危険度を上げる R01 は、送信元が不一致のときだけ、medium まで。
-    var campOfficial = fromRel && ["send_matched", "web_aligned"].indexOf(fromRel.rel) >= 0;
+    var ledgerOfficial = fromRel && ["send_matched", "web_aligned"].indexOf(fromRel.rel) >= 0;
+    var campOfficial = ledgerOfficial;
+    if (claim && claim.brand.officialKey && g.MH_OFFICIAL_SENDERS && typeof g.MH_OFFICIAL_SENDERS.passes === "function" && sender) {
+      campOfficial = g.MH_OFFICIAL_SENDERS.passes(sender.addr, claim.brand.officialKey);
+    }
     var campHit = false;
     var campNote = "";
     var campLead = "";

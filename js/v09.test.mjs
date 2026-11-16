@@ -7,6 +7,7 @@ import { createRequire } from "module";
 import { projectReadableList } from "./stage2-projection.mjs";
 const require = createRequire(import.meta.url);
 require("./protocol-data.js");
+require("./official-senders.js");
 require("./judge.js");
 require("./stage2-public.js");
 require("./flags.js");
